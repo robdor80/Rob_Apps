@@ -7,7 +7,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URI
 
-data class Repository(val fullName: String, val private: Boolean, val archived: Boolean, val branch: String) {
+data class Repository(val fullName: String, val isPrivate: Boolean, val archived: Boolean, val branch: String) {
     val name: String get() = fullName.substringAfter('/')
 }
 data class Release(val tag: String, val publishedAt: String)

@@ -111,7 +111,7 @@ private fun ApplicationDetails(vm: PublisherViewModel) {
                 Text(vm.selected.orEmpty())
                 val repo = vm.repository
                 if (repo != null) {
-                    Text("${if (repo.private) "Privado" else "Público"} · ${if (repo.archived) "Archivado" else "Activo"}")
+                    Text("${if (repo.isPrivate) "Privado" else "Público"} · ${if (repo.archived) "Archivado" else "Activo"}")
                     Text("Rama predeterminada: ${repo.branch}")
                 } else Text("Estado del repositorio sin comprobar", color = RobWarning)
                 if (vm.detailsLoaded) {
@@ -174,7 +174,7 @@ private fun Settings(vm: PublisherViewModel) {
         items(vm.accessible.filter { it.fullName.contains(filter, ignoreCase = true) }, key = { "available:${it.fullName}" }) { repo ->
             Panel {
                 Text(repo.fullName)
-                Text(if (repo.private) "Privado" else "Público", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (repo.isPrivate) "Privado" else "Público", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick = { vm.add(repo.fullName) }, enabled = repo.fullName !in vm.configured && !vm.busy) {
                     Text(if (repo.fullName in vm.configured) "Ya añadida" else "Añadir aplicación")
                 }
