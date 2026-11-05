@@ -2,21 +2,23 @@ name: Android RP-01
 on:
   pull_request:
   push:
-    branches: [main, feat/rp-01-robpublisher]
+    branches: [main]
   workflow_dispatch:
+concurrency:
+  group: android-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   debug:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - name: Compilar y comprobar
         run: ./gradlew --no-daemon assembleDebug lintDebug
       - uses: actions/upload-artifact@v4
