@@ -12,7 +12,7 @@ android {
         targetSdk = 36
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
         resValue("string", "app_name", "RobPublisher")
     }
     buildTypes {

@@ -59,8 +59,8 @@ La entrada es `.github/workflows/android-distribute.yml`, que llama al motor cen
 `publish` exige el run anterior, SHA-256, mismo SHA/canal/tag y confirmación
 `PUBLICAR <etiqueta>`, además de aprobaciones en GitHub. El alta de claves es personal.
 
-**Pendiente RP-02:** lectura y gestión real de Actions, contrato de configuración por
-aplicación e integración con ese workflow y sus aprobaciones. No se ha copiado ni
+**Pendiente RP-02:** lectura y gestión real de Actions desde la app e integración
+funcional con el workflow de distribución y sus aprobaciones. No se ha copiado ni
 modificado el motor, configurado secretos, ejecutado workflows de distribución,
 creado tags ni publicado versiones. RP-03 cubrirá la prueba funcional y entrega final.
 
@@ -71,3 +71,42 @@ Los recursos de launcher normales, redondos y adaptativos cubren mdpi, hdpi,
 xhdpi, xxhdpi y xxxhdpi. DEV usa la misma imagen con la insignia «D» de RobStore.
 Para regenerarlos: `python tools/generate_launcher_icons.py` (Pillow 12.3.0);
 `--check` comprueba que los PNG versionados coinciden con la fuente.
+
+## Preparación nativa RS-05
+
+`.github/android-distribution.json` declara las identidades Release y DEV, módulo
+`app`, SDK 26/36, nombre, descripción, icono oficial y notas versionadas.
+`robstorePolicy: false` selecciona la verificación genérica para otras aplicaciones;
+la política especial `true` está reservada a RobStore y no controla la entrada al catálogo.
+
+`.github/workflows/android-distribute.yml` conserva la entrada manual oficial
+`prepare`/`publish` y llama al motor de RobStore fijado al commit
+`50a7ec0f2f0720040467d1187fb07b67ff8b27c0`, ya incorporado en su `main`.
+No contiene el motor ni recibe secretos con `inherit`. El job queda desactivado
+mientras `ANDROID_DISTRIBUTION_ENABLED` no sea `true`; no se configura esa variable
+en RP-01. Las notas mantienen `NOT_FOR_PUBLICATION`, que el motor rechaza.
+
+Más adelante, desde Android/Termux y siguiendo el
+[procedimiento oficial RS-05](https://github.com/robdor80/RobStore/blob/50a7ec0f2f0720040467d1187fb07b67ff8b27c0/docs/ANDROID-MOBILE-FIRST.md),
+el propietario ejecutará el asistente central `tools/android_owner_setup.py` desde
+ese mismo commit aprobado, con `--repository robdor80/Rob_Apps`, un directorio
+privado propio, `--tooling-sha` con ese SHA completo y `--catalog`. El asistente
+realiza el alta de dos claves independientes, su recuperación comprobada, los
+entornos y sus secretos/huellas, el topic `robstore-app` y las variables del motor.
+No ejecutar ese asistente desde Codex ni desde CI. Si se actualiza el motor, cambiar
+juntos el pin del workflow y `ANDROID_DISTRIBUTION_TOOLING_SHA`.
+
+Versión inicial preparada: `versionCode = 1`, `versionName = 1.0.0`; DEV añade
+`-DEV`. Antes de distribuir se aprobarán versión y notas. Las versiones posteriores
+aumentarán `versionCode` por paquete y conservarán la clave permanente de cada canal.
+Las identidades no cambian. El motor compila sin claves, desactiva la firma Gradle
+y el modo depurable del candidato DEV, y firma después usando los entornos oficiales.
+Los APK Debug temporales de CI no sustituyen esa firma DEV permanente ni garantizan
+actualización compatible sobre una instalación oficial.
+
+No se añaden contratos ficticios `robstore.json`, `robstore-update.json` ni recibos: el
+motor los genera en el commit de cierre del tag con datos del APK real y copia el
+PNG oficial a `robstore/icon.png`. Una Release estable que cumpla ese contrato podrá
+aparecer en el catálogo; DEV conserva su identidad independiente y no se lista como
+estable. RP-01 no crea claves, entornos, topics, variables, tags ni Releases, ni ejecuta
+`prepare`, `publish` u operaciones de firma oficiales.
