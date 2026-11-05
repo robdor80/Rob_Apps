@@ -19,17 +19,23 @@ class NavigationSmokeTest {
     }
     @After fun clean() { LocalStore(context).saveRepositories(emptyList()) }
 
+    private fun clickInList(text: String, substring: Boolean = false) {
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(text, substring = substring))
+        compose.onNodeWithText(text, substring = substring).performClick()
+    }
+
     @Test fun homeDetailsSettingsAndBack() {
         compose.onNodeWithText("Aplicaciones (1)").assertIsDisplayed()
         compose.onNodeWithText("Rob_Apps").performClick()
-        compose.onNodeWithText("Publicar primera versión").performScrollTo().performClick()
+        clickInList("Publicar primera versión")
         compose.onNodeWithText("La publicación estará disponible en RP-02. No se ha ejecutado ninguna acción.").assertIsDisplayed()
         compose.onNodeWithText("Cerrar aviso").performClick()
-        compose.onNodeWithText("Volver a Inicio", substring = true).performScrollTo().performClick()
+        clickInList("Volver a Inicio", substring = true)
         compose.onNodeWithText("Aplicaciones (1)").assertIsDisplayed()
         compose.onNodeWithText("Ajustes").performClick()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Token personal"))
         compose.onNodeWithText("Token personal").assertIsDisplayed()
-        compose.onNodeWithText("Eliminar de RobPublisher").performScrollTo().performClick()
+        clickInList("Eliminar de RobPublisher")
         compose.onNodeWithText("Inicio").performClick()
         compose.onNodeWithText("Aplicaciones (0)").assertIsDisplayed()
     }
