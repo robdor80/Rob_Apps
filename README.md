@@ -2,7 +2,8 @@
 
 Aplicación Android personal en Kotlin, Jetpack Compose y Material 3. SDK 36,
 minSdk 26, bytecode/JDK de CI 17. Paquete `es.robertodorado.robpublisher`;
-Debug `es.robertodorado.robpublisher.debug` (RobPublisher-DEV).
+Debug `es.robertodorado.robpublisher.debug`. El nombre visible es RobPublisher en
+ambas variantes; DEV se distingue por la «D» en el icono.
 
 ## Uso y prueba desde el móvil
 
@@ -62,3 +63,11 @@ La entrada es `.github/workflows/android-distribute.yml`, que llama al motor cen
 aplicación e integración con ese workflow y sus aprobaciones. No se ha copiado ni
 modificado el motor, configurado secretos, ejecutado workflows de distribución,
 creado tags ni publicado versiones. RP-03 cubrirá la prueba funcional y entrega final.
+
+## Icono oficial
+
+Fuente: `assets/robpublisher/icon.png`, conservada sin recortar ni recolorear.
+Los recursos de launcher normales, redondos y adaptativos cubren mdpi, hdpi,
+xhdpi, xxhdpi y xxxhdpi. DEV usa la misma imagen con la insignia «D» de RobStore.
+Para regenerarlos: `python tools/generate_launcher_icons.py` (Pillow 12.3.0);
+`--check` comprueba que los PNG versionados coinciden con la fuente.

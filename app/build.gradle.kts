@@ -19,7 +19,6 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-DEV"
-            resValue("string", "app_name", "RobPublisher-DEV")
         }
     }
     compileOptions {
