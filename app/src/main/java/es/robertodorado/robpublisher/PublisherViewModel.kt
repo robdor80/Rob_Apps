@@ -19,7 +19,7 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
     private var oauthJob: Job? = null
     private var token: String? = null
     var oauthClientId by mutableStateOf(store.oauthClientId()); private set
-    var pendingAuthorization by mutableStateOf<DeviceAuthorization?>(null); private set
+    internal var pendingAuthorization by mutableStateOf<DeviceAuthorization?>(null); private set
     var authorizing by mutableStateOf(false); private set
     var configured by mutableStateOf(store.repositories()); private set
     var accessible by mutableStateOf<List<Repository>>(emptyList()); private set
