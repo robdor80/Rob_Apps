@@ -4,8 +4,8 @@ on:
     inputs:
       channel:
         type: choice
-        description: Canal que se compila, firma y publica automáticamente
-        options: [release, dev]
+        description: Solo versiones oficiales
+        options: [release]
         default: release
 permissions:
   contents: read
@@ -21,4 +21,4 @@ jobs:
       deployments: read
     with:
       source_sha: ${{ github.sha }}
-      channel: ${{ inputs.channel }}
+      channel: release
