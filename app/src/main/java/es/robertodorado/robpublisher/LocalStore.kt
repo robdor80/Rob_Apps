@@ -43,7 +43,7 @@ class LocalStore(context: Context) {
         require(GitHubOAuth.validClientId(value))
         check(preferences.edit().putString("oauth_client_id", value).commit())
     }
-    fun oauth(): OAuthCredentials? {
+    internal fun oauth(): OAuthCredentials? {
         val encrypted = preferences.getString("oauth", null) ?: return null
         val iv = preferences.getString("oauth_iv", null) ?: error("Falta el vector de cifrado de OAuth")
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
@@ -55,7 +55,7 @@ class LocalStore(context: Context) {
             data.getLong("accessExpiry"), data.getLong("refreshExpiry"), data.getString("login"),
         )
     }
-    fun saveOAuth(value: OAuthCredentials) {
+    internal fun saveOAuth(value: OAuthCredentials) {
         val json = org.json.JSONObject()
             .put("access", value.accessToken).put("refresh", value.refreshToken)
             .put("accessExpiry", value.accessExpiresAt).put("refreshExpiry", value.refreshExpiresAt)
