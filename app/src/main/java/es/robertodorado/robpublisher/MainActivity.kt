@@ -150,7 +150,7 @@ private fun ApplicationDetails(vm: PublisherViewModel) {
     var showGitHubHelp by rememberSaveable(vm.selected) { mutableStateOf(false) }
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     LaunchedEffect(vm.publication?.repository) {
-        if (vm.publication?.repository == vm.selected) list.scrollToItem(3)
+        if (vm.publication?.repository == vm.selected) list.scrollToItem(4)
     }
     LazyColumn(state = list, verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { TextButton(onClick = { vm.screen = "Inicio" }) { Text("← Volver a Inicio") } }
