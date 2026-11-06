@@ -20,7 +20,7 @@ class GitHubException(val status: Int) : Exception(when (status) {
     401 -> "Token no válido o caducado. Revisa la conexión."
     403 -> "GitHub ha denegado el acceso. Revisa permisos o límite de consultas."
     404 -> "Repositorio no accesible o recurso no encontrado."
-    422 -> "GitHub ha rechazado los datos. Revisa la etiqueta, la rama y los inputs del workflow."
+    422 -> "GitHub ha rechazado los datos. La aplicación necesita actualizar su integración de distribución."
     409 -> "El repositorio ha cambiado o la operación entra en conflicto. Actualiza su estado."
     429 -> "Demasiadas consultas. Espera antes de reintentar."
     else -> "GitHub no está disponible (HTTP $status)."
@@ -120,7 +120,7 @@ class GitHubService(private val transport: GitHubTransport = RestTransport()) {
                 else -> integrationStatus(repo, configText, token)
             }
             result += ApplicationSummary(repo, release, status == null,
-                status ?: "Base RS-05 lista. Alta personal, firmas y CI se validan al preparar.",
+                status ?: "Lista para distribuir automáticamente.",
                 discovered = repo.fullName.startsWith("robdor80/") && (configText != null || "robstore-app" in repo.topics))
         }
         return result.sortedBy { it.repository.fullName.lowercase() }
@@ -157,11 +157,7 @@ class GitHubService(private val transport: GitHubTransport = RestTransport()) {
         if (workflow.optString("state") != "active") return "Preparación pendiente: workflow RS-05 deshabilitado."
         val workflowText = fileOrNull(repo, ".github/workflows/android-distribute.yml", token)
         if (workflowText == null || !usesRs05Workflow(repo.fullName, workflowText)) {
-            return "Preparación pendiente: el workflow de main no llama al motor oficial RS-05 fijado a SHA."
-        }
-        val notes = fileOrNull(repo, notesPath, token)
-        if (notes.isNullOrBlank() || "<!-- NOT_FOR_PUBLICATION -->" in notes) {
-            return "Preparación pendiente: faltan notas de versión aprobadas."
+            return "Preparación pendiente: el workflow de main no llama al motor automático central."
         }
         return null
     }
