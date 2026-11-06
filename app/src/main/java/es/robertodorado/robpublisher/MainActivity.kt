@@ -147,6 +147,8 @@ private fun Home(vm: PublisherViewModel) {
 @Composable
 private fun ApplicationDetails(vm: PublisherViewModel) {
     val list = rememberLazyListState()
+    var showGitHubHelp by rememberSaveable(vm.selected) { mutableStateOf(false) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     LaunchedEffect(vm.publication?.repository) {
         if (vm.publication?.repository == vm.selected) list.scrollToItem(3)
     }
@@ -173,6 +175,23 @@ private fun ApplicationDetails(vm: PublisherViewModel) {
                 Text("Publicación", style = MaterialTheme.typography.titleLarge)
                 Text("GitHub compila, firma y publica automáticamente. Puedes seguir el progreso aquí.")
                 Button(onClick = vm::distribute, enabled = !vm.busy && vm.publication?.watching != true) { Text("Publicar actualización") }
+            }
+        }
+        item {
+            Panel {
+                Text("Acceso propio a GitHub (opcional)", style = MaterialTheme.typography.titleMedium)
+                Text("Para publicar esta aplicación NO necesitas añadir ningún Client ID: RobPublisher ya se encarga.")
+                Text("Si la propia aplicación va a consultar o modificar GitHub, recuerda integrar el inicio de sesión OAuth de RobGit RD con sus permisos autorizados.")
+                OutlinedButton(onClick = { showGitHubHelp = !showGitHubHelp }) {
+                    Text(if (showGitHubHelp) "Ocultar datos de conexión" else "Ver conexión de RobGit RD")
+                }
+                if (showGitHubHelp) {
+                    Text("Client ID público: $ROBGIT_RD_CLIENT_ID")
+                    OutlinedButton(onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(ROBGIT_RD_CLIENT_ID))
+                    }) { Text("Copiar Client ID") }
+                    Text("El Client ID por sí solo no conecta una app: también debe implementar OAuth y solicitar autorización. No copies tokens ni secretos.")
+                }
             }
         }
         vm.publication?.let { session -> item { PublicationProgress(vm, session) } }
