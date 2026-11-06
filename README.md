@@ -70,7 +70,7 @@ con `python3 tools/generate_launcher_icons.py`. La insignia «D» identifica DEV
 
 RobPublisher comparte la **GitHub App RobGit RD**, ya instalada con acceso a los repositorios autorizados y permisos Actions: Read and write. Cada aplicación Android tiene una sesión independiente: no lee los datos privados de RobGit.
 
-La aplicación usa el **device authorization flow** de GitHub, sin PAT ni `client_secret` incrustado. La primera vez se configura únicamente el **Client ID público** de RobGit RD, se pulsa «Conectar con GitHub» y se introduce el código de un solo uso en https://github.com/login/device. La GitHub App debe tener **Device Flow habilitado** en Developer settings → GitHub Apps → RobGit RD → General. Esto no cambia el OAuth web de RobGit.
+La aplicación usa el **device authorization flow** de GitHub, sin PAT ni `client_secret` incrustado. El **Client ID público** de RobGit RD ya viene configurado, así que basta con pulsar «Conectar con GitHub» y se introduce el código de un solo uso en https://github.com/login/device. La GitHub App debe tener **Device Flow habilitado** en Developer settings → GitHub Apps → RobGit RD → General. Esto no cambia el OAuth web de RobGit.
 
 GitHub expide tokens de usuario y renovación. Se guardan cifrados con Android Keystore y el acceso se renueva automáticamente antes de caducar. Si se revoca la autorización o caduca el token de renovación tras un periodo prolongado sin usarla, se autoriza nuevamente desde la misma pantalla, sin generar PAT. Los permisos corresponden a la intersección de RobGit RD instalada y la cuenta usuaria.
 
