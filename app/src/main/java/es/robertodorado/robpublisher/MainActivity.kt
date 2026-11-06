@@ -1,7 +1,6 @@
 package es.robertodorado.robpublisher
 
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -16,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -30,8 +28,6 @@ import kotlinx.coroutines.awaitCancellation
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Evita capturas y previsualizaciones del token en recientes.
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         enableEdgeToEdge()
         setContent { RobStyle { PublisherApp() } }
     }
@@ -41,7 +37,7 @@ class MainActivity : ComponentActivity() {
 fun PublisherApp(vm: PublisherViewModel = viewModel()) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val tracking = vm.publication
-    LaunchedEffect(tracking?.repository, tracking?.operation, tracking?.runId, tracking?.watching, vm.hasToken) {
+    LaunchedEffect(tracking?.repository, tracking?.runId, tracking?.watching, vm.hasToken) {
         if (tracking?.watching == true && vm.hasToken) {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) { vm.updatePublication(); delay(10_000) }
@@ -150,10 +146,9 @@ private fun Home(vm: PublisherViewModel) {
 
 @Composable
 private fun ApplicationDetails(vm: PublisherViewModel) {
-    val uri = LocalUriHandler.current
     val list = rememberLazyListState()
-    LaunchedEffect(vm.publicationForm, vm.publication?.repository, vm.publication?.operation) {
-        if (vm.publicationForm || vm.publication?.repository == vm.selected) list.scrollToItem(3)
+    LaunchedEffect(vm.publication?.repository) {
+        if (vm.publication?.repository == vm.selected) list.scrollToItem(3)
     }
     LazyColumn(state = list, verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { TextButton(onClick = { vm.screen = "Inicio" }) { Text("← Volver a Inicio") } }
@@ -176,13 +171,15 @@ private fun ApplicationDetails(vm: PublisherViewModel) {
         item {
             Panel {
                 Text("Publicación", style = MaterialTheme.typography.titleLarge)
-                Text("RS-05 prepara el APK en GitHub. Después podrás revisar el candidato y confirmar su publicación.")
-                Button(onClick = vm::showPublicationForm, enabled = !vm.busy && vm.publication == null) { Text("Publicar primera versión") }
-                OutlinedButton(onClick = vm::showPublicationForm, enabled = !vm.busy && vm.publication == null) { Text("Publicar actualización") }
-                OutlinedButton(onClick = { uri.openUri("https://github.com/${vm.selected}/actions") }) { Text("Abrir GitHub Actions") }
+                Text("GitHub compila, firma y publica automáticamente. Puedes seguir el progreso aquí.")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    FilterChip(selected = vm.channel == "release", onClick = { vm.chooseChannel("release") }, label = { Text("Normal") }, enabled = !vm.busy && vm.publication?.watching != true)
+                    Spacer(Modifier.width(8.dp))
+                    FilterChip(selected = vm.channel == "dev", onClick = { vm.chooseChannel("dev") }, label = { Text("Pruebas") }, enabled = !vm.busy && vm.publication?.watching != true)
+                }
+                Button(onClick = vm::distribute, enabled = !vm.busy && vm.publication?.watching != true) { Text("Publicar actualización") }
             }
         }
-        if (vm.publicationForm) item { PublicationForm(vm) }
         vm.publication?.let { session -> item { PublicationProgress(vm, session) } }
     }
 }
@@ -197,7 +194,7 @@ private fun Settings(vm: PublisherViewModel) {
             Panel {
                 Text("Conexión GitHub", style = MaterialTheme.typography.titleLarge)
                 Text(vm.login?.let { "Conectado como $it" } ?: if (vm.hasToken) "Token guardado; comprueba la conexión." else "Introduce un token personal de GitHub.")
-                Text("Token fine-grained de robdor80, limitado a los repositorios elegidos: Metadata y Contents de lectura; Actions de lectura y escritura. Las aprobaciones de despliegues se hacen en GitHub; la app consulta su espera mediante Actions. No se necesitan permisos de Deployments, escritura en Contents, Secrets ni Administration.")
+                Text("Token fine-grained de robdor80, limitado a los repositorios elegidos: Metadata y Contents de lectura; Actions de lectura y escritura. La publicación habitual no necesita permisos de Secrets ni Administration.")
                 OutlinedTextField(value = candidate, onValueChange = { candidate = it },
                     label = { Text("Token personal") }, singleLine = true, enabled = !vm.busy,
                     visualTransformation = PasswordVisualTransformation(),
@@ -246,65 +243,20 @@ private fun Panel(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun PublicationForm(vm: PublisherViewModel) {
-    Panel {
-        Text("Preparar candidato RS-05", style = MaterialTheme.typography.titleLarge)
-        Text("Workflow disponible y habilitado. Fuente: main · ${vm.plan?.source?.take(12)}")
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = vm.channel == "release", onClick = { vm.chooseChannel("release") }, enabled = !vm.busy)
-            Text("Release")
-            RadioButton(selected = vm.channel == "dev", onClick = { vm.chooseChannel("dev") }, enabled = !vm.busy)
-            Text("DEV")
-        }
-        OutlinedTextField(value = vm.tag, onValueChange = { vm.tag = it }, singleLine = true,
-            label = { Text("Etiqueta de versión") }, enabled = !vm.busy, modifier = Modifier.fillMaxWidth())
-        Text("La etiqueta debe corresponder a la versión del APK en main, con versionCode creciente. La propuesta usa las versiones literales del código; no modifica el repositorio.")
-        Text("El repositorio necesita el alta personal RS-05, notas aprobadas y CI de main correcta. GitHub conservará sus aprobaciones de firma y publicación.")
-        Button(onClick = vm::prepare, enabled = !vm.busy && vm.tag.isNotBlank()) { Text("Preparar candidato") }
-        TextButton(onClick = vm::closePublicationForm, enabled = !vm.busy) { Text("Cancelar preparación") }
-    }
-
-}
-
-@Composable
 private fun PublicationProgress(vm: PublisherViewModel, session: PublicationSession) {
-    val uri = LocalUriHandler.current
-    var confirmPublish by remember { mutableStateOf(false) }
-    var confirmClose by remember { mutableStateOf(false) }
-    val success = session.phase in setOf("preparado", "publicado")
     Panel {
-        Text("Seguimiento RS-05", style = MaterialTheme.typography.titleLarge)
-        Text("${session.repository} · ${if (session.channel == "release") "Release" else "DEV"} · ${session.tag}")
-        Text("${if (success) "● Correcto" else "● ${session.phase.replaceFirstChar { it.uppercase() }}"} · ${session.operation}",
-            color = if (success) RobSuccess else if (session.phase == "error") MaterialTheme.colorScheme.error else RobWarning)
-        Text(session.detail)
-        Text("Commit: ${session.source.take(12)} · Run: ${if (session.runId > 0) session.runId else "buscando"}")
-        session.candidate?.let { candidate ->
-            Text("APK: ${candidate.asset}\nPaquete: ${candidate.packageName}\nVersión: ${candidate.version} (${candidate.code})")
-            Text("SHA-256 oficial: ${candidate.sha256}", style = MaterialTheme.typography.bodySmall)
-            Text("Huella pública de firma: ${candidate.certificate}", style = MaterialTheme.typography.bodySmall)
+        Text("Distribución", style = MaterialTheme.typography.titleLarge)
+        Text(session.repository.substringAfter('/'))
+        Text(session.detail, color = when (session.phase) {
+            "publicado" -> RobSuccess
+            "error" -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.onSurface
+        })
+        if (session.watching) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+            Text("Puedes cerrar la aplicación. El seguimiento se retomará al volver.")
+        } else {
+            TextButton(onClick = vm::closePublication, enabled = !vm.busy) { Text("Cerrar") }
         }
-        if (session.operation == "prepare" && session.phase == "preparado") {
-            Button(onClick = { confirmPublish = true }, enabled = !vm.busy && vm.hasToken) { Text("Revisar y publicar candidato") }
-        }
-        OutlinedButton(onClick = vm::updatePublication, enabled = !vm.busy && vm.hasToken) { Text("Actualizar estado") }
-        OutlinedButton(onClick = { uri.openUri(session.runUrl) }) {
-            Text(if (session.phase == "requiere aprobación") "Aprobar entorno en GitHub" else "Ver ejecución en GitHub")
-        }
-        if (session.phase == "publicado") {
-            Button(onClick = { uri.openUri(session.releaseUrl) }) { Text("Abrir GitHub Releases") }
-        }
-        TextButton(onClick = { confirmClose = true }, enabled = !vm.busy) { Text("Cerrar seguimiento") }
-        Text("El seguimiento se guarda en este dispositivo. Actualiza automáticamente mientras la app está visible; al volver de GitHub se retoma.", style = MaterialTheme.typography.bodySmall)
     }
-    if (confirmPublish) AlertDialog(onDismissRequest = { confirmPublish = false },
-        title = { Text("Confirmar publicación del candidato") },
-        text = { Text("${session.repository}\n${session.channel} · ${session.tag}\n${session.candidate?.version} (${session.candidate?.code})\nSHA-256: ${session.candidate?.sha256}\n\nAl confirmar autorizas PUBLICAR ${session.tag}. Se enviarán automáticamente el run y el hash de este candidato. GitHub aún exigirá aprobar android-publish.") },
-        confirmButton = { TextButton(onClick = { confirmPublish = false; vm.publishConfirmed() }, enabled = !vm.busy) { Text("PUBLICAR ${session.tag}") } },
-        dismissButton = { TextButton(onClick = { confirmPublish = false }) { Text("Cancelar") } })
-    if (confirmClose) AlertDialog(onDismissRequest = { confirmClose = false },
-        title = { Text("Cerrar seguimiento local") },
-        text = { Text("La ejecución puede continuar en GitHub. Cerrar el seguimiento no cancela ni revoca nada. Revisa su resultado allí antes de iniciar otra publicación.") },
-        confirmButton = { TextButton(onClick = { confirmClose = false; vm.closePublication() }) { Text("Cerrar seguimiento") } },
-        dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Mantener seguimiento") } })
 }
