@@ -7,13 +7,20 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class PublisherViewModel(application: Application) : AndroidViewModel(application) {
     private val store = LocalStore(application)
     private val github = GitHubService()
     private val distribution = DistributionService(github)
+    private val oauth = GitHubOAuth()
+    private var oauthJob: Job? = null
     private var token: String? = null
+    var oauthClientId by mutableStateOf(store.oauthClientId()); private set
+    internal var pendingAuthorization by mutableStateOf<DeviceAuthorization?>(null); private set
+    var authorizing by mutableStateOf(false); private set
     var configured by mutableStateOf(store.repositories()); private set
     var accessible by mutableStateOf<List<Repository>>(emptyList()); private set
     var applications by mutableStateOf<List<ApplicationSummary>>(emptyList()); private set
@@ -33,8 +40,13 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
         try { publication = store.publication() }
         catch (_: Exception) { message = "No se pudo recuperar el seguimiento guardado. No se enviará ninguna orden automáticamente." }
 
-        try { token = store.token(); hasToken = token != null }
-        catch (_: Exception) { message = "No se pudo leer el token protegido. Desconecta y vuelve a configurarlo." }
+        try {
+            val session = store.oauth()
+            token = if (session == null) store.token() else null
+            hasToken = session != null || token != null
+        } catch (_: Exception) {
+            message = "No se pudo recuperar la conexión cifrada. Vuelve a conectar con GitHub."
+        }
         if (hasToken) checkConnection()
     }
     private fun operation(block: suspend () -> Unit) {
@@ -45,23 +57,88 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
             try { block() }
             catch (e: CancellationException) { throw e }
             catch (e: PublicationError) { message = e.message }
+            catch (e: OAuthFailure) { message = e.message }
             catch (e: GitHubException) {
-                if (e.status == 401) { login = null; accessible = emptyList() }
-                message = e.message
+                if (e.status == 401) {
+                    login = null; accessible = emptyList()
+                    if (store.oauth() != null) {
+                        store.clearOAuth(); hasToken = false
+                        message = "GitHub ha revocado la conexión. Vuelve a autorizar RobGit RD."
+                    } else message = e.message
+                } else message = e.message
             }
             catch (_: java.io.IOException) { message = "No se pudo conectar con GitHub. Comprueba Internet y reintenta." }
             catch (_: Exception) { message = "No se pudo completar la operación. Revisa la configuración y reintenta." }
             finally { busy = false }
         }
     }
-    fun connect(value: String) = operation {
-        val candidate = value.trim()
-        require(candidate.isNotEmpty())
-        val user = github.user(candidate)
-        store.saveToken(candidate)
-        token = candidate; hasToken = true; login = user
-        accessible = emptyList(); applications = emptyList(); discoveryComplete = false
-        message = "Conexión comprobada y token guardado."
+    fun setOAuthClientId(value: String) { if (!authorizing) oauthClientId = value.trim() }
+
+    /** Conexión mediante RobGit RD; ni PAT ni secreto de cliente. */
+    fun beginAuthorization() {
+        if (authorizing) return
+        operation {
+            val id = oauthClientId.trim()
+            if (!GitHubOAuth.validClientId(id)) throw OAuthFailure("Introduce el Client ID público de RobGit RD (una sola vez).")
+            store.saveOAuthClientId(id)
+            val pending = oauth.begin(id)
+            pendingAuthorization = pending
+            authorizing = true
+            oauthJob?.cancel()
+            oauthJob = viewModelScope.launch {
+                var seconds = pending.intervalSeconds
+                try {
+                    while (System.currentTimeMillis() < pending.expiresAt) {
+                        delay(seconds * 1000L)
+                        when (val result = oauth.poll(id, pending)) {
+                            DevicePoll.Waiting -> Unit
+                            DevicePoll.SlowDown -> seconds += 5L
+                            is DevicePoll.Failed -> {
+                                message = result.explanation
+                                return@launch
+                            }
+                            is DevicePoll.Authorized -> {
+                                val account = github.user(result.token.accessToken)
+                                if (account != "robdor80") {
+                                    message = "Conecta con tu cuenta robdor80."
+                                    return@launch
+                                }
+                                store.saveOAuth(OAuthCredentials(
+                                    result.token.accessToken, result.token.refreshToken,
+                                    result.token.accessExpiresAt, result.token.refreshExpiresAt, account,
+                                ))
+                                store.discardLegacyToken()
+                                token = null
+                                login = account
+                                hasToken = true
+                                applications = emptyList()
+                                accessible = emptyList()
+                                discoveryComplete = false
+                                message = "GitHub conectado. Las credenciales se renovarán automáticamente."
+                                return@launch
+                            }
+                        }
+                    }
+                    message = "Ha caducado el código de GitHub. Pulsa Conectar de nuevo."
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: OAuthFailure) {
+                    message = e.message
+                } catch (e: Exception) {
+                    message = "No se pudo completar la conexión. Vuelve a intentarlo."
+                } finally {
+                    if (pendingAuthorization === pending) {
+                        pendingAuthorization = null
+                        authorizing = false
+                    }
+                }
+            }
+        }
+    }
+    fun cancelAuthorization() {
+        oauthJob?.cancel()
+        pendingAuthorization = null
+        authorizing = false
     }
     fun checkConnection() = operation {
         login = null
@@ -80,6 +157,7 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
     fun disconnect() = operation {
+        cancelAuthorization()
         store.disconnect(); token = null; hasToken = false; login = null
         applications = emptyList(); discoveryComplete = false
         accessible = emptyList(); repository = null; release = null; detailsLoaded = false
@@ -152,5 +230,22 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
         catch (_: Exception) { message = "No se pudo cerrar el seguimiento guardado." }
     }
     fun dismissMessage() { message = null }
-    private fun requireToken() = token ?: throw IllegalStateException("Sin token")
+    private suspend fun requireToken(): String {
+        val saved = store.oauth()
+        if (saved != null) {
+            val now = System.currentTimeMillis()
+            if (saved.refreshExpiresAt <= now) {
+                store.clearOAuth()
+                hasToken = false
+                throw OAuthFailure("La sesión de GitHub ha caducado. Vuelve a conectarte con RobGit RD.")
+            }
+            if (saved.accessExpiresAt - now <= 300_000L) {
+                val fresh = oauth.refresh(oauthClientId, saved)
+                store.saveOAuth(fresh)
+                return fresh.accessToken
+            }
+            return saved.accessToken
+        }
+        return token ?: throw OAuthFailure("Conecta con GitHub desde Ajustes.")
+    }
 }
