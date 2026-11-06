@@ -191,10 +191,7 @@ private fun Settings(vm: PublisherViewModel) {
                 Text("Conexión GitHub", style = MaterialTheme.typography.titleLarge)
                 Text(vm.login?.let { "Conectado como $it" } ?: if (vm.hasToken) "Conexión anterior disponible." else "Conecta tu cuenta GitHub una sola vez.")
                 Text("Usamos la integración RobGit RD: acceso a tus repositorios, renovación automática y ninguna necesidad de generar tokens personales.")
-                OutlinedTextField(value = vm.oauthClientId, onValueChange = vm::setOAuthClientId,
-                    label = { Text("Client ID público de RobGit RD") }, singleLine = true,
-                    enabled = !vm.busy && !vm.authorizing, modifier = Modifier.fillMaxWidth())
-                Text("El Client ID solo se configura una vez. No es una contraseña ni un token.")
+                Text("RobGit RD está configurado. No necesitas copiar identificadores ni tokens.")
                 Button(onClick = vm::beginAuthorization, enabled = !vm.busy && !vm.authorizing &&
                     GitHubOAuth.validClientId(vm.oauthClientId)) { Text("Conectar con GitHub") }
                 vm.pendingAuthorization?.let { pending ->
