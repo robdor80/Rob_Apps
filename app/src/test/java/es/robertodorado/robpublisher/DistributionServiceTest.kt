@@ -34,7 +34,7 @@ class DistributionServiceTest {
             ApiResponse(200, value)
         }))
         assertEquals(10L, api.dispatch(session(), "test-token"))
-        assertEquals(setOf("channel"), posts.single().getJSONObject("inputs").keySet())
+        assertEquals(1, posts.single().getJSONObject("inputs").length())
         assertEquals("release", posts.single().getJSONObject("inputs").getString("channel"))
         assertTrue(api.update(session(), "test-token").detail.contains("Compilando"))
         job = "sign"; assertTrue(api.update(session(), "test-token").detail.contains("Firmando"))
