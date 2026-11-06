@@ -37,8 +37,43 @@ class LocalStore(context: Context) {
         }
         return String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
     }
-    fun disconnect() {
+    /** Client ID público de RobGit RD: no es token ni secreto. */
+    fun oauthClientId(): String = preferences.getString("oauth_client_id", "").orEmpty()
+    fun saveOAuthClientId(value: String) {
+        require(GitHubOAuth.validClientId(value))
+        check(preferences.edit().putString("oauth_client_id", value).commit())
+    }
+    fun oauth(): OAuthCredentials? {
+        val encrypted = preferences.getString("oauth", null) ?: return null
+        val iv = preferences.getString("oauth_iv", null) ?: error("Falta el vector de cifrado de OAuth")
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
+            init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
+        }
+        val data = org.json.JSONObject(String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8))
+        return OAuthCredentials(
+            data.getString("access"), data.getString("refresh"),
+            data.getLong("accessExpiry"), data.getLong("refreshExpiry"), data.getString("login"),
+        )
+    }
+    fun saveOAuth(value: OAuthCredentials) {
+        val json = org.json.JSONObject()
+            .put("access", value.accessToken).put("refresh", value.refreshToken)
+            .put("accessExpiry", value.accessExpiresAt).put("refreshExpiry", value.refreshExpiresAt)
+            .put("login", value.login).toString()
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
+        val encrypted = cipher.doFinal(json.toByteArray(Charsets.UTF_8))
+        check(preferences.edit().putString("oauth", Base64.encodeToString(encrypted, Base64.NO_WRAP))
+            .putString("oauth_iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP)).commit())
+    }
+    fun discardLegacyToken() {
         check(preferences.edit().remove("token").remove("iv").commit())
+    }
+    fun clearOAuth() {
+        check(preferences.edit().remove("oauth").remove("oauth_iv").commit())
+    }
+    fun disconnect() {
+        check(preferences.edit().remove("token").remove("iv")
+            .remove("oauth").remove("oauth_iv").commit())
         KeyStore.getInstance("AndroidKeyStore").apply { load(null); deleteEntry(alias) }
     }
     fun publication(): PublicationSession? = preferences.getString("publication", null)?.let {
