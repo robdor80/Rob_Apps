@@ -16,7 +16,7 @@ internal class OAuthCredentials(
     val login: String,
 )
 
-internal data class DeviceAuthorization(
+internal class DeviceAuthorization(
     val deviceCode: String,
     val userCode: String,
     val verificationUri: String,
