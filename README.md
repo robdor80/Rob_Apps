@@ -75,3 +75,8 @@ La aplicación usa el **device authorization flow** de GitHub, sin PAT ni `clien
 GitHub expide tokens de usuario y renovación. Se guardan cifrados con Android Keystore y el acceso se renueva automáticamente antes de caducar. Si se revoca la autorización o caduca el token de renovación tras un periodo prolongado sin usarla, se autoriza nuevamente desde la misma pantalla, sin generar PAT. Los permisos corresponden a la intersección de RobGit RD instalada y la cuenta usuaria.
 
 Se mantiene lectura del token antiguo exclusivamente para migrar la instalación ya existente. Al completar OAuth, RobPublisher borra ese token antiguo. No se guardan secretos ni tokens en el repositorio.
+
+
+### Recordatorio para futuras aplicaciones
+
+RobPublisher tiene preconfigurado el Client ID **público** de RobGit RD, y en cada ficha de publicación incluye un recordatorio opcional con un botón para copiarlo. **No es necesario añadirlo a una aplicación para publicarla:** la autenticación de publicación pertenece a RobPublisher. Solo debe integrarse OAuth y el Client ID en una aplicación que necesite acceder a GitHub por sí misma; el identificador sin la implementación del flujo OAuth no concede acceso. Este recordatorio no bloquea publicaciones.
