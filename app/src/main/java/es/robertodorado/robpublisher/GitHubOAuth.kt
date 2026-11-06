@@ -139,6 +139,6 @@ internal class GitHubOAuth(
 
     companion object {
         fun validClientId(id: String): Boolean =
-            id.length in 8..128 && id.all { it.isLetterOrDigit() || it == '_' || it == '-' }
+            id.length in 8..128 && id.all { it.isLetterOrDigit() || it == '_' || it == '-' || it == '.' }
     }
 }
