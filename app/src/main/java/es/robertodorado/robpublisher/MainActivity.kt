@@ -147,8 +147,10 @@ private fun Home(vm: PublisherViewModel) {
 @Composable
 private fun ApplicationDetails(vm: PublisherViewModel) {
     val list = rememberLazyListState()
+    var showGitHubHelp by rememberSaveable(vm.selected) { mutableStateOf(false) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     LaunchedEffect(vm.publication?.repository) {
-        if (vm.publication?.repository == vm.selected) list.scrollToItem(3)
+        if (vm.publication?.repository == vm.selected) list.scrollToItem(4)
     }
     LazyColumn(state = list, verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { TextButton(onClick = { vm.screen = "Inicio" }) { Text("← Volver a Inicio") } }
@@ -175,6 +177,23 @@ private fun ApplicationDetails(vm: PublisherViewModel) {
                 Button(onClick = vm::distribute, enabled = !vm.busy && vm.publication?.watching != true) { Text("Publicar actualización") }
             }
         }
+        item {
+            Panel {
+                Text("Acceso propio a GitHub (opcional)", style = MaterialTheme.typography.titleMedium)
+                Text("Para publicar esta aplicación NO necesitas añadir ningún Client ID: RobPublisher ya se encarga.")
+                Text("Si la propia aplicación va a consultar o modificar GitHub, recuerda integrar el inicio de sesión OAuth de RobGit RD con sus permisos autorizados.")
+                OutlinedButton(onClick = { showGitHubHelp = !showGitHubHelp }) {
+                    Text(if (showGitHubHelp) "Ocultar datos de conexión" else "Ver conexión de RobGit RD")
+                }
+                if (showGitHubHelp) {
+                    Text("Client ID público: $ROBGIT_RD_CLIENT_ID")
+                    OutlinedButton(onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(ROBGIT_RD_CLIENT_ID))
+                    }) { Text("Copiar Client ID") }
+                    Text("El Client ID por sí solo no conecta una app: también debe implementar OAuth y solicitar autorización. No copies tokens ni secretos.")
+                }
+            }
+        }
         vm.publication?.let { session -> item { PublicationProgress(vm, session) } }
     }
 }
@@ -191,10 +210,7 @@ private fun Settings(vm: PublisherViewModel) {
                 Text("Conexión GitHub", style = MaterialTheme.typography.titleLarge)
                 Text(vm.login?.let { "Conectado como $it" } ?: if (vm.hasToken) "Conexión anterior disponible." else "Conecta tu cuenta GitHub una sola vez.")
                 Text("Usamos la integración RobGit RD: acceso a tus repositorios, renovación automática y ninguna necesidad de generar tokens personales.")
-                OutlinedTextField(value = vm.oauthClientId, onValueChange = vm::setOAuthClientId,
-                    label = { Text("Client ID público de RobGit RD") }, singleLine = true,
-                    enabled = !vm.busy && !vm.authorizing, modifier = Modifier.fillMaxWidth())
-                Text("El Client ID solo se configura una vez. No es una contraseña ni un token.")
+                Text("RobGit RD está configurado. No necesitas copiar identificadores ni tokens.")
                 Button(onClick = vm::beginAuthorization, enabled = !vm.busy && !vm.authorizing &&
                     GitHubOAuth.validClientId(vm.oauthClientId)) { Text("Conectar con GitHub") }
                 vm.pendingAuthorization?.let { pending ->

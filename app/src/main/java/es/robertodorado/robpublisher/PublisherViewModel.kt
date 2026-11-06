@@ -18,7 +18,7 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
     private val oauth = GitHubOAuth()
     private var oauthJob: Job? = null
     private var token: String? = null
-    var oauthClientId by mutableStateOf(store.oauthClientId()); private set
+    val oauthClientId: String = ROBGIT_RD_CLIENT_ID
     internal var pendingAuthorization by mutableStateOf<DeviceAuthorization?>(null); private set
     var authorizing by mutableStateOf(false); private set
     var configured by mutableStateOf(store.repositories()); private set
@@ -72,15 +72,12 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
             finally { busy = false }
         }
     }
-    fun setOAuthClientId(value: String) { if (!authorizing) oauthClientId = value.trim() }
 
     /** Conexión mediante RobGit RD; ni PAT ni secreto de cliente. */
     fun beginAuthorization() {
         if (authorizing) return
         operation {
-            val id = oauthClientId.trim()
-            if (!GitHubOAuth.validClientId(id)) throw OAuthFailure("Introduce el Client ID público de RobGit RD (una sola vez).")
-            store.saveOAuthClientId(id)
+            val id = ROBGIT_RD_CLIENT_ID
             val pending = oauth.begin(id)
             pendingAuthorization = pending
             authorizing = true
