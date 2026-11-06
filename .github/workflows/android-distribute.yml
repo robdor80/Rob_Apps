@@ -1,12 +1,6 @@
 name: Android distribution (RobPublisher)
 on:
   workflow_dispatch:
-    inputs:
-      channel:
-        type: choice
-        description: Canal que se compila, firma y publica automáticamente
-        options: [release, dev]
-        default: release
 permissions:
   contents: read
   actions: read
@@ -21,4 +15,4 @@ jobs:
       deployments: read
     with:
       source_sha: ${{ github.sha }}
-      channel: ${{ inputs.channel }}
+      channel: release
