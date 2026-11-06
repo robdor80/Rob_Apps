@@ -17,7 +17,7 @@ data class Release(val tag: String, val publishedAt: String)
 data class ApplicationSummary(val repository: Repository, val release: Release?, val integrationReady: Boolean,
     val status: String, val releaseChecked: Boolean = true, val discovered: Boolean = false)
 class GitHubException(val status: Int) : Exception(when (status) {
-    401 -> "Token no válido o caducado. Revisa la conexión."
+    401 -> "GitHub ha rechazado la sesión. Vuelve a conectar tu cuenta."
     403 -> "GitHub ha denegado el acceso. Revisa permisos o límite de consultas."
     404 -> "Repositorio no accesible o recurso no encontrado."
     422 -> "GitHub ha rechazado los datos. La aplicación necesita actualizar su integración de distribución."
