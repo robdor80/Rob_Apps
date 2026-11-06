@@ -110,7 +110,7 @@ private fun Home(vm: PublisherViewModel) {
         item {
             Text("Aplicaciones (${vm.applicationNames.size})", style = MaterialTheme.typography.titleLarge)
             Button(onClick = vm::refreshApplications, enabled = vm.hasToken && !vm.busy) { Text("Actualizar") }
-            Text("Descubrimiento automático en robdor80: topic robstore-app o configuración RS-05. Solo se muestran repositorios accesibles al token.")
+            Text("Descubrimiento automático en robdor80: topic robstore-app o configuración RS-05. Se muestran los repositorios autorizados en GitHub.")
             if (!vm.discoveryComplete && !vm.busy && vm.applications.isNotEmpty()) Text("Datos de la consulta anterior. Pulsa Actualizar para reintentar.", color = RobWarning)
             TextButton(onClick = { vm.screen = "Ajustes"; if (vm.hasToken && !vm.busy) vm.loadRepositories() }) {
                 Text("Añadir aplicación manualmente")
@@ -181,23 +181,37 @@ private fun ApplicationDetails(vm: PublisherViewModel) {
 
 @Composable
 private fun Settings(vm: PublisherViewModel) {
-    // Nunca se usa rememberSaveable para el token ni se copia al estado persistido.
-    var candidate by remember { mutableStateOf("") }
+    // El Client ID no es un secreto. Los tokens OAuth nunca entran en el estado Compose.
+    val browser = androidx.compose.ui.platform.LocalUriHandler.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     var filter by rememberSaveable { mutableStateOf("") }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
             Panel {
                 Text("Conexión GitHub", style = MaterialTheme.typography.titleLarge)
-                Text(vm.login?.let { "Conectado como $it" } ?: if (vm.hasToken) "Token guardado; comprueba la conexión." else "Introduce un token personal de GitHub.")
-                Text("Token fine-grained de robdor80, limitado a los repositorios elegidos: Metadata y Contents de lectura; Actions de lectura y escritura. La publicación habitual no necesita permisos de Secrets ni Administration.")
-                OutlinedTextField(value = candidate, onValueChange = { candidate = it },
-                    label = { Text("Token personal") }, singleLine = true, enabled = !vm.busy,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth())
-                Text("Se guarda cifrado en este dispositivo con Android Keystore.")
-                Button(onClick = { vm.connect(candidate); candidate = "" }, enabled = candidate.isNotBlank() && !vm.busy) { Text("Guardar y comprobar") }
+                Text(vm.login?.let { "Conectado como $it" } ?: if (vm.hasToken) "Conexión anterior disponible." else "Conecta tu cuenta GitHub una sola vez.")
+                Text("Usamos la integración RobGit RD: acceso a tus repositorios, renovación automática y ninguna necesidad de generar tokens personales.")
+                OutlinedTextField(value = vm.oauthClientId, onValueChange = vm::setOAuthClientId,
+                    label = { Text("Client ID público de RobGit RD") }, singleLine = true,
+                    enabled = !vm.busy && !vm.authorizing, modifier = Modifier.fillMaxWidth())
+                Text("El Client ID solo se configura una vez. No es una contraseña ni un token.")
+                Button(onClick = vm::beginAuthorization, enabled = !vm.busy && !vm.authorizing &&
+                    GitHubOAuth.validClientId(vm.oauthClientId)) { Text("Conectar con GitHub") }
+                vm.pendingAuthorization?.let { pending ->
+                    Text("Autoriza RobPublisher con GitHub. Código de un solo uso:")
+                    Text(pending.userCode, style = MaterialTheme.typography.headlineMedium)
+                    OutlinedButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(pending.userCode)) }) {
+                        Text("Copiar código")
+                    }
+                    Button(onClick = { browser.openUri(pending.verificationUri) }) {
+                        Text("Abrir GitHub para autorizar")
+                    }
+                    Text("La conexión se completará automáticamente al aceptar en GitHub.")
+                    TextButton(onClick = vm::cancelAuthorization) { Text("Cancelar conexión") }
+                }
+                Text("Las credenciales se guardan cifradas con Android Keystore y se renuevan automáticamente.")
                 OutlinedButton(onClick = vm::checkConnection, enabled = vm.hasToken && !vm.busy) { Text("Comprobar conexión") }
-                TextButton(onClick = { candidate = ""; vm.disconnect() }, enabled = !vm.busy) { Text("Desconectar y borrar token") }
+                TextButton(onClick = vm::disconnect, enabled = !vm.busy) { Text("Desconectar GitHub") }
             }
         }
         item { Text("Aplicaciones añadidas manualmente", style = MaterialTheme.typography.titleLarge) }
