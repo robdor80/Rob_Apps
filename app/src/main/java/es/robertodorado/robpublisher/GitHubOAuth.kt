@@ -7,6 +7,9 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
 
+/** Identificador público de nuestra GitHub App, sin credenciales ni secretos. */
+internal const val ROBGIT_RD_CLIENT_ID = "Iv23liwEJPI2xtkpLqfF"
+
 /** Sesión de usuario de la GitHub App RobGit RD. Nunca se guarda en texto claro. */
 internal class OAuthCredentials(
     val accessToken: String,
