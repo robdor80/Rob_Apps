@@ -1,6 +1,12 @@
 name: Android distribution (RobPublisher)
 on:
   workflow_dispatch:
+    inputs:
+      channel:
+        type: choice
+        description: Solo versiones oficiales
+        options: [release]
+        default: release
 permissions:
   contents: read
   actions: read
