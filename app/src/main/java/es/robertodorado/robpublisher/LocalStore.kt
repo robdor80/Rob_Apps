@@ -41,6 +41,12 @@ class LocalStore(context: Context) {
         check(preferences.edit().remove("token").remove("iv").commit())
         KeyStore.getInstance("AndroidKeyStore").apply { load(null); deleteEntry(alias) }
     }
+    fun publication(): PublicationSession? = preferences.getString("publication", null)?.let {
+        PublicationSession.from(org.json.JSONObject(it))
+    }
+    fun savePublication(session: PublicationSession?) {
+        check(preferences.edit().putString("publication", session?.json()?.toString()).commit())
+    }
     fun repositories(): List<String> = preferences.getStringSet("repositories", emptySet())!!.sorted()
     fun saveRepositories(names: List<String>) {
         check(preferences.edit().putStringSet("repositories", names.toSet()).commit())

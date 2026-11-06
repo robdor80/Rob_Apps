@@ -15,27 +15,59 @@ class GitHubException(val status: Int) : Exception(when (status) {
     401 -> "Token no válido o caducado. Revisa la conexión."
     403 -> "GitHub ha denegado el acceso. Revisa permisos o límite de consultas."
     404 -> "Repositorio no accesible o recurso no encontrado."
+    422 -> "GitHub ha rechazado los datos. Revisa la etiqueta, la rama y los inputs del workflow."
+    409 -> "El repositorio ha cambiado o la operación entra en conflicto. Actualiza su estado."
     429 -> "Demasiadas consultas. Espera antes de reintentar."
     else -> "GitHub no está disponible (HTTP $status)."
 })
 
-/** Cliente REST reutilizable. RP-01 solo realiza lecturas; sin ejecución de workflows. */
-class GitHubService {
-    private suspend fun get(path: String, token: String): String = withContext(Dispatchers.IO) {
+data class ApiResponse(val status: Int, val body: String, val location: String? = null)
+fun interface GitHubTransport {
+    suspend fun request(method: String, path: String, token: String, body: String?): ApiResponse
+}
+
+/** Solo api.github.com recibe Authorization; los errores nunca incluyen cuerpos ni secretos. */
+class RestTransport : GitHubTransport {
+    override suspend fun request(method: String, path: String, token: String, body: String?): ApiResponse = withContext(Dispatchers.IO) {
+        require(path.startsWith("/repos/") || path.startsWith("/user"))
         val connection = URI("https://api.github.com$path").toURL().openConnection() as HttpURLConnection
         try {
-            connection.requestMethod = "GET"
+            connection.requestMethod = method
             connection.instanceFollowRedirects = false
             connection.connectTimeout = 15_000
-            connection.readTimeout = 20_000
+            connection.readTimeout = 30_000
             connection.setRequestProperty("Authorization", "Bearer $token")
             connection.setRequestProperty("Accept", "application/vnd.github+json")
             connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
             connection.setRequestProperty("User-Agent", "RobPublisher/1.0")
+            if (body != null) {
+                val bytes = body.toByteArray(Charsets.UTF_8)
+                connection.doOutput = true
+                connection.setFixedLengthStreamingMode(bytes.size)
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.outputStream.use { it.write(bytes) }
+            }
             val status = connection.responseCode
-            if (status !in 200..299) throw GitHubException(status)
-            connection.inputStream.bufferedReader().use { it.readText() }
+            val text = if (status in 200..299) connection.inputStream.use {
+                val bytes = it.readLimited(2 * 1024 * 1024)
+                check(bytes.size <= 2 * 1024 * 1024)
+                bytes.toString(Charsets.UTF_8)
+            } else ""
+            ApiResponse(status, text, connection.getHeaderField("Location"))
         } finally { connection.disconnect() }
+    }
+}
+
+class GitHubService(private val transport: GitHubTransport = RestTransport()) {
+    internal suspend fun request(method: String, path: String, token: String, body: JSONObject? = null): ApiResponse {
+        val response = transport.request(method, path, token, body?.toString())
+        if (response.status !in 200..299 && response.status != 302) throw GitHubException(response.status)
+        return response
+    }
+    internal suspend fun get(path: String, token: String): String {
+        val response = request("GET", path, token)
+        if (response.status !in 200..299) throw GitHubException(response.status)
+        return response.body
     }
     suspend fun user(token: String): String = JSONObject(get("/user", token)).getString("login")
     suspend fun repositories(token: String): List<Repository> {

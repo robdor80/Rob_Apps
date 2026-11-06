@@ -1,4 +1,4 @@
-# RobPublisher — RP-01
+# RobPublisher — RP-01 y RP-02
 
 Aplicación Android personal en Kotlin, Jetpack Compose y Material 3. SDK 36,
 minSdk 26, bytecode/JDK de CI 17. Paquete `es.robertodorado.robpublisher`;
@@ -7,22 +7,33 @@ ambas variantes; DEV se distingue por la «D» en el icono.
 
 ## Uso y prueba desde el móvil
 
-1. Descargar `RobPublisher-DEV` en el run correcto de **Actions → Android RP-01**,
+1. Descargar `RobPublisher-DEV` en el run correcto de **Actions → Android RobPublisher**,
    extraer el ZIP e instalar el APK Debug. Es un artefacto temporal de CI, no una Release.
 2. Crear personalmente un PAT fine-grained en GitHub, con acceso a los repositorios
-   deseados, **Metadata: Read** y **Contents: Read**. En organizaciones puede requerir
-   autorización adicional. No enviarlo por chat ni añadirlo al repositorio.
+   deseados: **Metadata: Read**, **Contents: Read** y **Actions: Read and write**.
+   No se necesitan permisos de Secrets, Administration, Deployments ni escritura
+   en Contents: las aprobaciones de entornos se hacen en la web oficial de GitHub. No enviarlo por chat ni añadirlo al repositorio.
 3. En Ajustes introducirlo y pulsar **Guardar y comprobar**. Debe aparecer el usuario
    real de GitHub. El token solo se guarda si `/user` acepta la autenticación.
 4. **Consultar repositorios**, filtrar y añadir uno. Volver a Inicio, seleccionarlo y
    comprobar nombre, visibilidad, estado archivado, rama y última Release estable.
    Un repositorio sin Release muestra ese estado; los errores no se presentan como éxito.
-5. Abrir GitHub Actions en el navegador. Ambos botones de publicación deben mostrar
-   que la función llegará en RP-02, sin iniciar workflows.
-6. Probar Volver, Inicio y Ajustes, girar a horizontal (tablet: contenido hasta 1040 dp),
+5. Para publicar, primero completar personalmente el alta RS-05 del repositorio.
+   En su ficha pulsar **Publicar primera versión** o **Publicar actualización**,
+   seleccionar Release/DEV, revisar la etiqueta y pulsar **Preparar candidato**.
+   Esto sí inicia `prepare` en GitHub: no probarlo contra producción sin autorización.
+   La propuesta de etiqueta usa la versión literal de main; no aumenta versiones ni
+   modifica código. Si main calcula su versión dinámicamente, introducir la etiqueta.
+6. El panel sigue el run y abre GitHub cuando necesita aprobar `android-release` o
+   `android-dev`. Al volver continúa consultando automáticamente. Una vez preparado,
+   muestra paquete, versión, hash oficial y huella pública. **Revisar y publicar candidato**
+   solicita confirmación explícita `PUBLICAR <etiqueta>`; envía run/hash/canal/tag/SHA
+   automáticamente. Aprobar `android-publish` en GitHub y volver para ver el resultado
+   y abrir la Release. No hay que copiar IDs, hashes ni comandos.
+7. Probar Volver, Inicio y Ajustes, girar a horizontal (tablet: contenido hasta 1040 dp),
    cerrar/reabrir y comprobar persistencia de la lista y reconexión. El token pendiente
    de introducir no sobrevive a la recreación de la pantalla.
-7. Eliminar una aplicación (no modifica GitHub). Desconectar borra token y clave local;
+8. Eliminar una aplicación (no modifica GitHub). Desconectar borra token y clave local;
    conserva la lista. Probar token inválido y falta de Internet para ver los errores.
 
 El token se cifra AES-GCM con una clave no exportable de Android Keystore. No se guarda
@@ -34,15 +45,18 @@ Android desactivadas y ventana protegida contra capturas. Al desinstalar se pier
 Con JDK 17 y Android SDK instalado:
 
 ```sh
-./gradlew assembleDebug lintDebug
+./gradlew assembleDebug testDebugUnitTest lintDebug
 ```
 
 La CI ejecuta esos mismos comandos y adjunta `app-debug.apk` durante 14 días.
 La firma Debug es temporal; no sustituye las claves DEV persistentes de distribución.
 No hay backend, Firebase ni base de datos remota. Servicio REST reutilizable en
 `GitHubService.kt`, almacenamiento local en `LocalStore.kt` y estado sencillo en
-`PublisherViewModel.kt`. Todas las peticiones usan HTTPS a `api.github.com`, sin
-seguimiento automático de redirecciones ni registro de cabeceras o cuerpos de error.
+`PublisherViewModel.kt`. `DistributionService.kt` controla RS-05. La API usa HTTPS
+con Authorization exclusivamente a `api.github.com`, sin seguir redirecciones.
+Para leer el candidato se sigue su URL temporal HTTPS **sin token** y se recorren
+los metadatos del ZIP con límites de tamaño; no se conserva, instala ni firma el APK.
+No se registran cabeceras, URLs firmadas ni cuerpos de error.
 La consulta de repositorios recorre todas las páginas. La última Release usa
 `/repos/{owner}/{repo}/releases/latest` (estable, sin borradores ni prereleases).
 
@@ -59,10 +73,24 @@ La entrada es `.github/workflows/android-distribute.yml`, que llama al motor cen
 `publish` exige el run anterior, SHA-256, mismo SHA/canal/tag y confirmación
 `PUBLICAR <etiqueta>`, además de aprobaciones en GitHub. El alta de claves es personal.
 
-**Pendiente RP-02:** lectura y gestión real de Actions desde la app e integración
-funcional con el workflow de distribución y sus aprobaciones. No se ha copiado ni
+**RP-02:** workflow activo comprobado en main y motor central fijado a SHA completo;
+seguimiento persistente de una publicación, con actualización cada 10 segundos en
+primer plano. La API devuelve el run exacto (`return_run_details`). Si la respuesta
+se pierde, se busca una ejecución nueva del mismo workflow/commit/propietario sin
+repetir el POST; ante varias posibles no se selecciona una automáticamente. Cerrar
+seguimiento solo elimina el estado local, sin cancelar GitHub. El recibo del candidato
+se contrasta con repositorio, run, SHA, canal, etiqueta, paquete y SHA256SUMS antes de
+habilitar publish. Si main cambia, se necesita un candidato nuevo. No se aprueba ningún
+entorno por API ni se sustituyen las comprobaciones del motor.
+
+Validación mínima: cuatro pruebas JVM con respuestas simuladas cubren prepare,
+aprobación, candidato ZIP/recibo/hash, inputs de publish, Release visible y errores
+(401/403/422, workflow deshabilitado, cancelación, caducidad y envío incierto).
+No ejecutan ninguna operación real. **RP-03 pendiente:** prueba autorizada en dispositivo
+con credenciales y repositorios ya preparados, experiencia final y entrega. No se ha copiado ni
 modificado el motor, configurado secretos, ejecutado workflows de distribución,
-creado tags ni publicado versiones. RP-03 cubrirá la prueba funcional y entrega final.
+creado tags ni publicado versiones desde Codex. Las operaciones oficiales solo se
+solicitan al usar explícitamente los controles de la app contra un repositorio habilitado.
 
 ## Icono oficial
 

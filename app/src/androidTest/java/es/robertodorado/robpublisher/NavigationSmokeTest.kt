@@ -28,7 +28,7 @@ class NavigationSmokeTest {
         compose.onNodeWithText("Aplicaciones (1)").assertIsDisplayed()
         compose.onNodeWithText("Rob_Apps").performClick()
         clickInList("Publicar primera versión")
-        compose.onNodeWithText("La publicación estará disponible en RP-02. No se ha ejecutado ninguna acción.").assertIsDisplayed()
+        compose.onNodeWithText("Configura y comprueba el token de GitHub en Ajustes antes de preparar una publicación.").assertIsDisplayed()
         compose.onNodeWithText("Cerrar aviso").performClick()
         clickInList("Volver a Inicio", substring = true)
         compose.onNodeWithText("Aplicaciones (1)").assertIsDisplayed()
