@@ -172,11 +172,6 @@ private fun ApplicationDetails(vm: PublisherViewModel) {
             Panel {
                 Text("Publicación", style = MaterialTheme.typography.titleLarge)
                 Text("GitHub compila, firma y publica automáticamente. Puedes seguir el progreso aquí.")
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilterChip(selected = vm.channel == "release", onClick = { vm.chooseChannel("release") }, label = { Text("Normal") }, enabled = !vm.busy && vm.publication?.watching != true)
-                    Spacer(Modifier.width(8.dp))
-                    FilterChip(selected = vm.channel == "dev", onClick = { vm.chooseChannel("dev") }, label = { Text("Pruebas") }, enabled = !vm.busy && vm.publication?.watching != true)
-                }
                 Button(onClick = vm::distribute, enabled = !vm.busy && vm.publication?.watching != true) { Text("Publicar actualización") }
             }
         }
