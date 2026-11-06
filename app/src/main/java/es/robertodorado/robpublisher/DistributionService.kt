@@ -136,7 +136,7 @@ class DistributionService(private val github: GitHubService) {
     }
     companion object {
         fun inputs(session: PublicationSession): JSONObject {
-            demand(session.channel in setOf("release", "dev"), "Canal de publicación no válido.")
+            demand(session.channel == "release", "Solo se permiten versiones definitivas.")
             return JSONObject().put("channel", session.channel)
         }
     }
