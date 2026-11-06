@@ -15,9 +15,13 @@ ambas variantes; DEV se distingue por la «D» en el icono.
    en Contents: las aprobaciones de entornos se hacen en la web oficial de GitHub. No enviarlo por chat ni añadirlo al repositorio.
 3. En Ajustes introducirlo y pulsar **Guardar y comprobar**. Debe aparecer el usuario
    real de GitHub. El token solo se guarda si `/user` acepta la autenticación.
-4. **Consultar repositorios**, filtrar y añadir uno. Volver a Inicio, seleccionarlo y
-   comprobar nombre, visibilidad, estado archivado, rama y última Release estable.
-   Un repositorio sin Release muestra ese estado; los errores no se presentan como éxito.
+4. Volver a Inicio: al abrir la app o volver a Inicio en primer plano se consultan
+   los repositorios accesibles de `robdor80`. Se muestran automáticamente los que
+   tienen `robstore-app` o `.github/android-distribution.json` en su rama predeterminada,
+   incluso sin Release. **Actualizar** repite la consulta. Las tarjetas muestran última
+   Release estable y estado básico RS-05. Ajustes conserva el alta manual alternativa,
+   integrada en la misma lista sin duplicados. Retirar el alta manual de una app
+   descubierta no la oculta del descubrimiento automático.
 5. Para publicar, primero completar personalmente el alta RS-05 del repositorio.
    En su ficha pulsar **Publicar primera versión** o **Publicar actualización**,
    seleccionar Release/DEV, revisar la etiqueta y pulsar **Preparar candidato**.
@@ -83,10 +87,15 @@ se contrasta con repositorio, run, SHA, canal, etiqueta, paquete y SHA256SUMS an
 habilitar publish. Si main cambia, se necesita un candidato nuevo. No se aprueba ningún
 entorno por API ni se sustituyen las comprobaciones del motor.
 
-Validación mínima: cuatro pruebas JVM con respuestas simuladas cubren prepare,
+Validación mínima: cinco pruebas JVM con respuestas simuladas cubren prepare,
 aprobación, candidato ZIP/recibo/hash, inputs de publish, Release visible y errores
 (401/403/422, workflow deshabilitado, cancelación, caducidad y envío incierto).
-No ejecutan ninguna operación real. **RP-03 pendiente:** prueba autorizada en dispositivo
+También se comprueban topic, configuración sin Release, última versión y alta manual
+sin duplicados. No ejecutan ninguna operación real. La base RS-05 se considera lista
+cuando existen configuración coherente, workflow oficial activo en main y notas
+aprobadas. Este indicador no certifica claves, alta personal ni CI: el motor las
+comprueba al preparar. Un error de consulta conserva la instantánea anterior y muestra
+el error, sin convertirlo en ausencia de aplicaciones. **RP-03 pendiente:** prueba autorizada en dispositivo
 con credenciales y repositorios ya preparados, experiencia final y entrega. No se ha copiado ni
 modificado el motor, configurado secretos, ejecutado workflows de distribución,
 creado tags ni publicado versiones desde Codex. Las operaciones oficiales solo se

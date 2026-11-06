@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.awaitCancellation
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,6 +45,15 @@ fun PublisherApp(vm: PublisherViewModel = viewModel()) {
         if (tracking?.watching == true && vm.hasToken) {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) { vm.updatePublication(); delay(10_000) }
+            }
+        }
+    }
+    LaunchedEffect(lifecycle, vm.hasToken, vm.screen) {
+        if (vm.hasToken && vm.screen == "Inicio") {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (vm.busy) delay(250)
+                vm.refreshApplications()
+                awaitCancellation()
             }
         }
     }
@@ -102,18 +112,35 @@ private fun Home(vm: PublisherViewModel) {
             }
         }
         item {
-            Text("Aplicaciones (${vm.configured.size})", style = MaterialTheme.typography.titleLarge)
-            Button(onClick = { vm.screen = "Ajustes"; if (vm.hasToken && !vm.busy) vm.loadRepositories() }) {
-                Text("Añadir aplicación")
+            Text("Aplicaciones (${vm.applicationNames.size})", style = MaterialTheme.typography.titleLarge)
+            Button(onClick = vm::refreshApplications, enabled = vm.hasToken && !vm.busy) { Text("Actualizar") }
+            Text("Descubrimiento automático en robdor80: topic robstore-app o configuración RS-05. Solo se muestran repositorios accesibles al token.")
+            if (!vm.discoveryComplete && !vm.busy && vm.applications.isNotEmpty()) Text("Datos de la consulta anterior. Pulsa Actualizar para reintentar.", color = RobWarning)
+            TextButton(onClick = { vm.screen = "Ajustes"; if (vm.hasToken && !vm.busy) vm.loadRepositories() }) {
+                Text("Añadir aplicación manualmente")
             }
         }
-        if (vm.configured.isEmpty()) item { Text("Todavía no has añadido aplicaciones. Configura GitHub y elige sus repositorios en Ajustes.") }
-        items(vm.configured, key = { it }) { name ->
+        if (vm.applicationNames.isEmpty()) item {
+            Text(if (!vm.hasToken) "Configura GitHub para descubrir tus aplicaciones automáticamente. También puedes añadir repositorios en Ajustes."
+                else if (vm.busy) "Buscando aplicaciones…"
+                else if (vm.discoveryComplete) "No se encontraron aplicaciones con robstore-app o configuración RS-05. Puedes añadir una manualmente."
+                else "Pulsa Actualizar para descubrir tus aplicaciones.")
+        }
+        items(vm.applicationNames, key = { it }) { name ->
             Card(onClick = { vm.open(name) }, enabled = !vm.busy, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(name.substringAfter('/'), style = MaterialTheme.typography.titleLarge)
                     Text(name)
-                    Text("● Configurada · estado pendiente de consultar", color = RobWarning)
+                    val summary = vm.applications.firstOrNull { it.repository.fullName == name }
+                    Text(when {
+                        summary == null || !summary.releaseChecked -> "Última versión pendiente de consultar"
+                        summary.release != null -> "Última Release estable: ${summary.release.tag} · ${summary.release.publishedAt}"
+                        else -> "Sin Release estable publicada"
+                    })
+                    Text("● ${summary?.status ?: "Estado RS-05 pendiente de comprobar"}",
+                        color = if (summary?.integrationReady == true) RobSuccess else RobWarning)
+                    if (summary != null) Text(if (summary.discovered) "Descubierta automáticamente" else "Alta manual",
+                        style = MaterialTheme.typography.bodySmall)
                     Text("Gestionar publicación →", color = MaterialTheme.colorScheme.secondary)
                 }
             }
@@ -181,8 +208,9 @@ private fun Settings(vm: PublisherViewModel) {
                 TextButton(onClick = { candidate = ""; vm.disconnect() }, enabled = !vm.busy) { Text("Desconectar y borrar token") }
             }
         }
-        item { Text("Aplicaciones añadidas", style = MaterialTheme.typography.titleLarge) }
-        if (vm.configured.isEmpty()) item { Text("No hay repositorios añadidos.") }
+        item { Text("Aplicaciones añadidas manualmente", style = MaterialTheme.typography.titleLarge) }
+        item { Text("El alta manual es una alternativa. Las aplicaciones descubiertas automáticamente siguen apareciendo en Inicio aunque elimines su alta manual.") }
+        if (vm.configured.isEmpty()) item { Text("No hay repositorios añadidos manualmente.") }
         items(vm.configured, key = { "saved:$it" }) { name ->
             Panel {
                 Text(name)

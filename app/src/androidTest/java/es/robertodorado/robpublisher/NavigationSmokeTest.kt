@@ -26,7 +26,7 @@ class NavigationSmokeTest {
 
     @Test fun homeDetailsSettingsAndBack() {
         compose.onNodeWithText("Aplicaciones (1)").assertIsDisplayed()
-        compose.onNodeWithText("Rob_Apps").performClick()
+        clickInList("Rob_Apps")
         clickInList("Publicar primera versión")
         compose.onNodeWithText("Configura y comprueba el token de GitHub en Ajustes antes de preparar una publicación.").assertIsDisplayed()
         compose.onNodeWithText("Cerrar aviso").performClick()

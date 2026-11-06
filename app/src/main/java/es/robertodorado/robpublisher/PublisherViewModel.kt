@@ -16,6 +16,9 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
     private var token: String? = null
     var configured by mutableStateOf(store.repositories()); private set
     var accessible by mutableStateOf<List<Repository>>(emptyList()); private set
+    var applications by mutableStateOf<List<ApplicationSummary>>(emptyList()); private set
+    var discoveryComplete by mutableStateOf(false); private set
+    val applicationNames: List<String> get() = (configured + applications.map { it.repository.fullName }).distinct().sorted()
     var login by mutableStateOf<String?>(null); private set
     var hasToken by mutableStateOf(false); private set
     var busy by mutableStateOf(false); private set
@@ -61,7 +64,7 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
         val user = github.user(candidate)
         store.saveToken(candidate)
         token = candidate; hasToken = true; login = user
-        accessible = emptyList(); publicationForm = false; plan = null
+        accessible = emptyList(); applications = emptyList(); discoveryComplete = false; publicationForm = false; plan = null
         message = "Conexión comprobada y token guardado."
     }
     fun checkConnection() = operation {
@@ -70,9 +73,20 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
         message = "Conexión con GitHub comprobada."
     }
     fun loadRepositories() = operation { accessible = github.repositories(requireToken()) }
+    fun refreshApplications() {
+        if (!hasToken) return
+        operation {
+            discoveryComplete = false
+            accessible = github.repositories(requireToken())
+            // Sustituir la instantánea solo cuando termina: un fallo no equivale a lista vacía.
+            applications = github.discoverApplications(accessible, configured, requireToken())
+            discoveryComplete = true
+        }
+    }
     fun disconnect() = operation {
         store.disconnect(); token = null; hasToken = false; login = null
         publicationForm = false; plan = null
+        applications = emptyList(); discoveryComplete = false
         accessible = emptyList(); repository = null; release = null; detailsLoaded = false
         message = "Desconectado. Se conserva la lista de aplicaciones."
     }
@@ -83,7 +97,10 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
     }
     fun remove(name: String) {
         val updated = configured - name
-        try { store.saveRepositories(updated); configured = updated }
+        try {
+            store.saveRepositories(updated); configured = updated
+            applications = applications.filter { it.repository.fullName != name || it.discovered }
+        }
         catch (_: Exception) { message = "No se pudo guardar la lista de aplicaciones." }
     }
     fun open(name: String) {

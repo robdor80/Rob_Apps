@@ -12,6 +12,12 @@ import java.net.URLEncoder
 import java.util.Base64
 import java.util.zip.ZipInputStream
 
+internal fun usesRs05Workflow(repo: String, text: String): Boolean {
+    val central = Regex("(?m)^\\s*uses:\\s*['\"]?robdor80/RobStore/\\.github/workflows/android-distribution-engine\\.yml@[a-f0-9]{40}['\"]?\\s*(?:#.*)?$")
+    val local = Regex("(?m)^\\s*uses:\\s*['\"]?\\./\\.github/workflows/android-distribution-engine\\.yml['\"]?\\s*(?:#.*)?$")
+    return "workflow_dispatch:" in text && (central.containsMatchIn(text) || repo == "robdor80/RobStore" && local.containsMatchIn(text))
+}
+
 class PublicationError(message: String) : Exception(message)
 internal fun demand(condition: Boolean, message: String) { if (!condition) throw PublicationError(message) }
 internal fun InputStream.readLimited(limit: Int): ByteArray {
@@ -143,10 +149,7 @@ class DistributionService(private val github: GitHubService, private val archive
         demand(workflow.getString("state") == "active", "El workflow android-distribute.yml está deshabilitado. Actívalo en GitHub.")
         val source = mainSha(repo, token)
         val text = content(repo, ".github/workflows/android-distribute.yml", source, token)
-        val central = Regex("(?m)^\\s*uses:\\s*['\"]?robdor80/RobStore/\\.github/workflows/android-distribution-engine\\.yml@[a-f0-9]{40}['\"]?\\s*(?:#.*)?$")
-        val local = Regex("(?m)^\\s*uses:\\s*['\"]?\\./\\.github/workflows/android-distribution-engine\\.yml['\"]?\\s*(?:#.*)?$")
-        demand("workflow_dispatch:" in text && (central.containsMatchIn(text) || repo == "robdor80/RobStore" && local.containsMatchIn(text)),
-            "El workflow de main no usa el motor oficial RS-05 fijado a un SHA completo.")
+        demand(usesRs05Workflow(repo, text), "El workflow de main no usa el motor oficial RS-05 fijado a un SHA completo.")
         val config = JSONObject(content(repo, ".github/android-distribution.json", source, token))
         demand(config.getInt("schemaVersion") == 1 && config.getString("repository") == repo, "Configuración RS-05 no válida para este repositorio.")
         val packages = config.getJSONObject("packages")

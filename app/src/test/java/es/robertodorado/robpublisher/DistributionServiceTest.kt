@@ -152,6 +152,48 @@ class DistributionServiceTest {
         val cancelled = DistributionService(GitHubService(GitHubTransport { _, _, _, _ -> ApiResponse(200, run(10, "completed", "cancelled").toString()) }))
         assertEquals("error", cancelled.update(session(), "token-simulado").phase)
     }
+    @Test fun discoveryFindsTopicAndRs05WithoutReleaseAndKeepsManualAlternative() = runBlocking {
+        val calls = mutableListOf<String>()
+        fun repository(name: String, topic: Boolean) = JSONObject().put("full_name", name)
+            .put("private", false).put("archived", false).put("fork", false).put("default_branch", "main")
+            .put("topics", if (topic) JSONArray().put("robstore-app") else JSONArray())
+        val repositories = JSONArray().put(repository("robdor80/TopicOnly", true))
+            .put(repository("robdor80/ConfigOnly", false)).put(repository("robdor80/Manual", false))
+            .put(repository("robdor80/Unrelated", false)).put(repository("other/Android", true))
+        val github = GitHubService(GitHubTransport { method, path, _, _ ->
+            assertEquals("GET", method)
+            calls += path
+            when {
+                path.startsWith("/user/repos?") -> ApiResponse(200, repositories.toString())
+                path.contains("/ConfigOnly/contents/.github/android-distribution.json") -> ApiResponse(200,
+                    content("""{"schemaVersion":1,"repository":"robdor80/ConfigOnly","packages":{"release":"$pkg","dev":"$pkg.debug"},"notesPath":".github/release-notes.md"}"""))
+                path.contains("/ConfigOnly/actions/workflows/") -> ApiResponse(200, """{"state":"active"}""")
+                path.contains("/ConfigOnly/contents/.github/workflows/") -> ApiResponse(200,
+                    content("on:\n  workflow_dispatch:\njobs:\n  distribute:\n    uses: robdor80/RobStore/.github/workflows/android-distribution-engine.yml@${"d".repeat(40)}\n"))
+                path.contains("/ConfigOnly/contents/.github/release-notes.md") -> ApiResponse(200, content("Notas aprobadas de la aplicación."))
+                path.contains("/TopicOnly/releases/latest") -> ApiResponse(200, """{"tag_name":"v2.0.0","published_at":"2026-11-06T00:00:00Z"}""")
+                else -> ApiResponse(404, "")
+            }
+        })
+        val available = github.repositories("token-simulado")
+        val apps = github.discoverApplications(available, listOf("robdor80/ConfigOnly", "robdor80/Manual"), "token-simulado")
+        assertEquals(listOf("robdor80/ConfigOnly", "robdor80/Manual", "robdor80/TopicOnly"), apps.map { it.repository.fullName })
+        val configured = apps.first()
+        assertTrue(configured.discovered)
+        assertTrue(configured.integrationReady)
+        assertTrue(configured.releaseChecked)
+        assertNull(configured.release) // Se descubre antes de su primera Release.
+        assertEquals("v2.0.0", apps.last().release!!.tag)
+        assertFalse(apps.last().integrationReady)
+        assertTrue(apps.last().status.contains("falta .github/android-distribution.json"))
+        assertFalse(apps[1].discovered)
+        assertTrue(calls.none { it.contains("/other/") })
+        assertTrue(calls.none { it.contains("/Unrelated/releases/") })
+        val automatic = github.discoverApplications(available, emptyList(), "token-simulado")
+        assertEquals(2, automatic.size)
+        assertTrue(automatic.all { it.discovered })
+    }
+
     private fun expectPublicationError(block: () -> Unit) {
         try { block(); fail("Candidato incoherente aceptado") } catch (_: PublicationError) { }
     }
