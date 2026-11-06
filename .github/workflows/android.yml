@@ -1,0 +1,62 @@
+name: Android RobPublisher
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: android-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Compilar y comprobar
+        run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RobPublisher-DEV
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Habilitar KVM para prueba breve de navegación
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Navegación básica (emulador)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: default
+          disable-animations: true
+          script: ./gradlew --no-daemon connectedDebugAndroidTest
+      - name: Detalle de errores de navegación
+        if: failure()
+        run: |
+          python3 - <<'PYTEST'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for report in Path("app/build/outputs/androidTest-results").rglob("TEST-*.xml"):
+              for failure in ET.parse(report).iter("failure"):
+                  detail = (failure.text or failure.get("message", "Fallo de navegación"))[:6000]
+                  detail = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error title=Navegación::{detail}")
+          PYTEST
+      - name: Informe de navegación
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-navegacion
+          path: app/build/reports/androidTests/connected/
+          if-no-files-found: ignore

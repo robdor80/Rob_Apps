@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "repository": "robdor80/Rob_Apps",
+  "name": "RobPublisher",
+  "description": "Gestión personal de publicaciones y actualizaciones Android mediante GitHub Actions.",
+  "packages": {
+    "release": "es.robertodorado.robpublisher",
+    "dev": "es.robertodorado.robpublisher.debug"
+  },
+  "module": "app",
+  "minSdk": 26,
+  "targetSdk": 36,
+  "robstorePolicy": false,
+  "iconSource": "assets/robpublisher/icon.png",
+  "notesPath": ".github/release-notes.md"
+}
