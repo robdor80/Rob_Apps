@@ -64,9 +64,8 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
                     if (store.oauth() != null) {
                         store.clearOAuth(); hasToken = false
                         message = "GitHub ha revocado la conexión. Vuelve a autorizar RobGit RD."
-                    }
-                }
-                message = e.message
+                    } else message = e.message
+                } else message = e.message
             }
             catch (_: java.io.IOException) { message = "No se pudo conectar con GitHub. Comprueba Internet y reintenta." }
             catch (_: Exception) { message = "No se pudo completar la operación. Revisa la configuración y reintenta." }
@@ -128,8 +127,10 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
                 } catch (e: Exception) {
                     message = "No se pudo completar la conexión. Vuelve a intentarlo."
                 } finally {
-                    pendingAuthorization = null
-                    authorizing = false
+                    if (pendingAuthorization === pending) {
+                        pendingAuthorization = null
+                        authorizing = false
+                    }
                 }
             }
         }
