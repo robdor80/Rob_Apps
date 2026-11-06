@@ -28,7 +28,6 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
     var detailsLoaded by mutableStateOf(false); private set
     var selected by mutableStateOf<String?>(null); private set
     var publication by mutableStateOf<PublicationSession?>(null); private set
-    var channel by mutableStateOf("release"); private set
     var screen by mutableStateOf("Inicio")
     init {
         try { publication = store.publication() }
@@ -111,9 +110,6 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
         release = github.latestRelease(name, requireToken())
         detailsLoaded = true
     }
-    fun chooseChannel(value: String) {
-        if (!busy && publication?.watching != true) channel = value
-    }
     private fun save(session: PublicationSession?) {
         store.savePublication(session)
         publication = session
@@ -124,7 +120,7 @@ class PublisherViewModel(application: Application) : AndroidViewModel(applicatio
         operation {
             val name = selected ?: return@operation
             val current = distribution.plan(name, requireToken())
-            val session = PublicationSession(current.repository, current.workflowId, channel,
+            val session = PublicationSession(current.repository, current.workflowId,
                 baseline = distribution.latestRunId(current.repository, requireToken()))
             // Save before the only POST so reopening the app cannot repeat the order.
             save(session)
