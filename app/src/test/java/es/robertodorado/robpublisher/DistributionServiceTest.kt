@@ -25,7 +25,14 @@ class DistributionServiceTest {
         val api = DistributionService(GitHubService(GitHubTransport { method, path, _, body ->
             val value = when {
                 method == "POST" -> { posts += JSONObject(body!!); """{"workflow_run_id":10}""" }
-                path.endsWith("/jobs?per_page=100") -> """{"jobs":[{"name":"distribute / $job","status":"in_progress"}]}"""
+                path.endsWith("/jobs?per_page=100") -> JSONObject().put("jobs", JSONArray().apply {
+                    listOf("guard", "build", "sign", "publish").forEach { step ->
+                        val state = if (status == "completed" || step == "guard") "completed"
+                            else if (step == job) "in_progress" else "queued"
+                        put(JSONObject().put("name", "distribute / $step")
+                            .put("status", state).put("conclusion", if (state == "completed") "success" else ""))
+                    }
+                }).toString()
                 path.contains("/actions/runs/") -> run(status, if (status == "completed") "success" else "").toString()
                 path.contains("/releases?") -> """[{"tag_name":"v1.0.0","draft":false,"prerelease":false,"assets":[{"name":"Android-release.apk","state":"uploaded"}]}]"""
                 path.contains("/contents/robstore-distribution.json") -> content("""{"preparationRun":"10","channel":"release","repository":"$repo"}""")
@@ -36,12 +43,18 @@ class DistributionServiceTest {
         assertEquals(10L, api.dispatch(session(), "test-token"))
         assertEquals(1, posts.single().getJSONObject("inputs").length())
         assertEquals("release", posts.single().getJSONObject("inputs").getString("channel"))
-        assertTrue(api.update(session(), "test-token").detail.contains("Compilando"))
-        job = "sign"; assertTrue(api.update(session(), "test-token").detail.contains("Firmando"))
-        job = "publish"; assertTrue(api.update(session(), "test-token").detail.contains("Publicando"))
+        val building = api.update(session(), "test-token")
+        assertTrue(building.detail.contains("Compilando"))
+        assertEquals("completado", building.stages["guard"])
+        assertEquals("en curso", building.stages["build"])
+        assertEquals("pendiente", building.stages["sign"])
+        assertEquals("pendiente", building.stages["publish"])
+        job = "sign"; assertEquals("en curso", api.update(session(), "test-token").stages["sign"])
+        job = "publish"; assertEquals("en curso", api.update(session(), "test-token").stages["publish"])
         status = "completed"
         val complete = api.update(session(), "test-token")
         assertEquals("publicado", complete.phase)
+        assertTrue(complete.stages.values.all { it == "completado" })
         assertEquals("v1.0.0", complete.tag)
         assertEquals(complete, PublicationSession.from(complete.json()))
         assertEquals(1, posts.size)
