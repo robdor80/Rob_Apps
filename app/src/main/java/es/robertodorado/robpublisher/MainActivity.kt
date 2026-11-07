@@ -272,6 +272,27 @@ private fun PublicationProgress(vm: PublisherViewModel, session: PublicationSess
     Panel {
         Text("Distribución", style = MaterialTheme.typography.titleLarge)
         Text(session.repository.substringAfter('/'))
+        listOf(
+            "guard" to "Preparación",
+            "build" to "Compilación",
+            "sign" to "Firma",
+            "publish" to "Publicación",
+        ).forEach { (step, label) ->
+            val status = session.stages[step] ?: "pendiente"
+            val symbol = when (status) {
+                "completado" -> "✓"
+                "en curso" -> "◉"
+                "fallido" -> "✕"
+                else -> "○"
+            }
+            val color = when (status) {
+                "completado" -> RobSuccess
+                "fallido" -> MaterialTheme.colorScheme.error
+                "en curso" -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Text("$symbol $label · $status", color = color)
+        }
         Text(session.detail, color = when (session.phase) {
             "publicado" -> RobSuccess
             "error" -> MaterialTheme.colorScheme.error
@@ -279,6 +300,7 @@ private fun PublicationProgress(vm: PublisherViewModel, session: PublicationSess
         })
         if (session.watching) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
+            Text("Estados reales de GitHub, consultados cada 10 segundos.")
             Text("Puedes cerrar la aplicación. El seguimiento se retomará al volver.")
         } else {
             TextButton(onClick = vm::closePublication, enabled = !vm.busy) { Text("Cerrar") }
