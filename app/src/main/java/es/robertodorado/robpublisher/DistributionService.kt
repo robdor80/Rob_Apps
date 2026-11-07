@@ -28,11 +28,12 @@ data class DistributionPlan(val repository: String, val workflowId: Long)
 /** Estado interno persistente: la interfaz no muestra ni solicita identificadores. */
 data class PublicationSession(val repository: String, val workflowId: Long,
     val channel: String = "release", val baseline: Long = 0, val runId: Long = 0,
-    val phase: String = "pendiente", val detail: String = "Orden enviada. Esperando a GitHub.", val tag: String = "") {
+    val phase: String = "pendiente", val detail: String = "Orden enviada. Esperando a GitHub.", val tag: String = "",
+    val stages: Map<String, String> = emptyMap()) {
     val watching get() = phase in setOf("pendiente", "ejecutándose")
     fun json(): JSONObject = JSONObject().put("schemaVersion", 2).put("repository", repository)
         .put("workflowId", workflowId).put("channel", channel).put("baseline", baseline).put("runId", runId)
-        .put("phase", phase).put("detail", detail).put("tag", tag)
+        .put("phase", phase).put("detail", detail).put("tag", tag).put("stages", JSONObject(stages))
     companion object {
         fun from(json: JSONObject): PublicationSession {
             val legacy = json.optInt("schemaVersion") != 2
@@ -40,11 +41,31 @@ data class PublicationSession(val repository: String, val workflowId: Long,
                 json.optString("channel", "release"), json.optLong("baseline"), json.optLong("runId"),
                 if (legacy) "error" else json.getString("phase"),
                 if (legacy) "Este seguimiento usa el procedimiento antiguo. Actualiza la integración de la aplicación antes de distribuir de nuevo. No se ha enviado otra orden." else json.getString("detail"),
-                json.optString("tag"))
+                json.optString("tag"),
+                json.optJSONObject("stages")?.let { steps ->
+                    listOf("guard", "build", "sign", "publish").mapNotNull { key ->
+                        steps.optString(key).takeIf { it in setOf("pendiente", "en curso", "completado", "fallido") }?.let { key to it }
+                    }.toMap()
+                } ?: emptyMap())
         }
     }
 }
 class DistributionService(private val github: GitHubService) {
+    private fun stages(jobs: List<JSONObject>): Map<String, String> {
+        val names = setOf("guard", "build", "sign", "publish")
+        return jobs.mapNotNull { job ->
+            val step = job.optString("name").substringAfterLast("/ ").trim()
+            if (step !in names) null else {
+                val state = when {
+                    job.optString("status") == "completed" && job.optString("conclusion") == "success" -> "completado"
+                    job.optString("status") == "completed" && job.optString("conclusion") in setOf("failure", "cancelled", "timed_out") -> "fallido"
+                    job.optString("status") == "in_progress" -> "en curso"
+                    else -> "pendiente"
+                }
+                step to state
+            }
+        }.toMap()
+    }
     private fun base(repo: String): String {
         demand(repo.matches(Regex("robdor80/[A-Za-z0-9_.-]+")), "Selecciona una aplicación de robdor80.")
         return "/repos/$repo"
@@ -91,6 +112,7 @@ class DistributionService(private val github: GitHubService) {
         }
         val jobs = JSONObject(github.get("${base(session.repository)}/actions/runs/$id/jobs?per_page=100", token)).getJSONArray("jobs")
         val list = (0 until jobs.length()).map { jobs.getJSONObject(it) }
+        val currentStages = stages(list)
         if (run.getString("status") != "completed") {
             val active = list.firstOrNull { it.optString("status") == "in_progress" }?.optString("name").orEmpty()
             val detail = when {
@@ -100,7 +122,7 @@ class DistributionService(private val github: GitHubService) {
                 active.endsWith("/ guard") -> "Preparando la distribución…"
                 else -> "Esperando un equipo disponible de GitHub…"
             }
-            return current.copy(phase = if (run.getString("status") == "in_progress") "ejecutándose" else "pendiente", detail = detail)
+            return current.copy(phase = if (run.getString("status") == "in_progress") "ejecutándose" else "pendiente", detail = detail, stages = currentStages)
         }
         if (run.optString("conclusion") != "success") {
             val failed = list.firstOrNull { it.optString("conclusion") in setOf("failure", "timed_out", "cancelled") }?.optString("name").orEmpty()
@@ -111,7 +133,7 @@ class DistributionService(private val github: GitHubService) {
                 failed.endsWith("/ publish") -> "No se pudo completar la publicación. La actualización no está confirmada; puede haber un borrador incompleto."
                 else -> "No se pudo iniciar la distribución. Comprueba que el alta inicial de la aplicación esté completa."
             }
-            return current.copy(phase = "error", detail = detail)
+            return current.copy(phase = "error", detail = detail, stages = currentStages)
         }
         val releases = org.json.JSONArray(github.get("${base(session.repository)}/releases?per_page=100", token))
         var published: JSONObject? = null
@@ -131,7 +153,7 @@ class DistributionService(private val github: GitHubService) {
         val assets = release.getJSONArray("assets")
         demand((0 until assets.length()).any { assets.getJSONObject(it).optString("name") == "Android-${session.channel}.apk" &&
             assets.getJSONObject(it).optString("state") == "uploaded" }, "No se encuentra el APK publicado.")
-        return current.copy(phase = "publicado", tag = tag, detail = if (session.channel == "release")
+        return current.copy(phase = "publicado", tag = tag, stages = currentStages, detail = if (session.channel == "release")
             "Actualización publicada. Ya puede aparecer en RobStore al actualizar el catálogo." else "Versión de pruebas publicada.")
     }
     companion object {
