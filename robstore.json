@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "RobPublisher",
+  "description": "Gestión personal de publicaciones y actualizaciones Android mediante GitHub Actions.",
+  "packageName": "es.robertodorado.robpublisher",
+  "icon": "robstore/icon.png",
+  "apkAssetName": "Android-release.apk",
+  "versionCode": 2,
+  "versionName": "1.0.1"
+}
