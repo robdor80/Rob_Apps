@@ -135,6 +135,7 @@ class DistributionService(private val github: GitHubService) {
                 if (url.startsWith(prefix) && url.removePrefix(prefix).all { it.isDigit() } && url.removePrefix(prefix).isNotEmpty())
                     github.get(url.removePrefix("https://api.github.com") + "/annotations?per_page=100", token) else ""
             } catch (_: GitHubException) { "" }
+              catch (_: java.io.IOException) { "" }
             val detail = when {
                 annotations.contains("versionCode must strictly increase") -> "La versión publicada ya existe o su código es demasiado bajo. Actualiza la información y prepara una nueva versión mediante PR."
                 annotations.contains("Resource not accessible") || annotations.contains("HTTP 403") -> "GitHub denegó permisos o limitó las consultas. Revisa el acceso existente; no generes ni compartas tokens."

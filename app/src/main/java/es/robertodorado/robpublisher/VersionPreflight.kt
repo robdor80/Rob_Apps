@@ -6,9 +6,9 @@ import java.util.Base64
 import java.net.URLEncoder
 
 data class VersionPreflight(val maximum: Long, val candidate: Long?, val name: String?) {
-    val allowed get() = candidate != null && candidate > maximum
+    val allowed get() = candidate != null && name != null && candidate > maximum
     val message get() = when {
-        candidate == null -> "No se puede determinar la versión candidata con seguridad. Revisa el versionado evaluado por Gradle en CI antes de publicar."
+        candidate == null || name == null -> "No se puede determinar la versión candidata con seguridad. Revisa el versionado evaluado por Gradle en CI antes de publicar."
         !allowed -> "La versión que intentas publicar ya existe o tiene un código interno demasiado bajo. Código actual: $maximum. Código mínimo necesario: ${maximum + 1}."
         else -> "Código oficial actual: $maximum. Versión candidata: $name (código $candidate)."
     }
@@ -42,7 +42,9 @@ internal class VersionPreflightService(private val github: GitHubService) {
                     baseline!!
                 }
                 demand(contract.getString("packageName") == pkg, "La identidad histórica no coincide.")
-                codes += contract.getLong("versionCode")
+                val code = contract.getLong("versionCode")
+                demand(code in 1..2100000000L, "Contrato de versión inválido; no se publicará.")
+                codes += code
             }
             if (releases.length() < 100) break
             demand(page < 100, "Listado de Releases incompleto; no se publicará.")
