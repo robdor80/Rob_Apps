@@ -206,7 +206,11 @@ class PublisherViewModel internal constructor(
                 throw OAuthFailure("La sesión de GitHub ha caducado. Vuelve a conectarte con RobGit RD.")
             }
             if (saved.refreshToken.isNotBlank() && saved.refreshExpiresAt > now && saved.accessExpiresAt - now <= 300_000L) {
-                val fresh = oauth.refresh(oauthClientId, saved)
+                val fresh = try { oauth.refresh(oauthClientId, saved) }
+                catch (e: OAuthFailure) {
+                    if (e.invalidSession) { store.clearOAuth(); hasToken = false; login = null }
+                    throw e
+                }
                 store.saveOAuth(fresh)
                 return fresh.accessToken
             }

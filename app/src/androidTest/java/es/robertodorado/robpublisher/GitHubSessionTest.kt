@@ -51,6 +51,25 @@ class GitHubSessionTest {
         assertEquals("test-access", store.oauth()?.accessToken)
     }
 
+    @Test fun transientRefreshFailureKeepsSessionAndInvalidRefreshRemovesIt() {
+        for (invalid in listOf(false, true)) {
+            store.saveOAuth(OAuthCredentials("test-access", "test-refresh", System.currentTimeMillis() + 60_000,
+                System.currentTimeMillis() + 86_400_000, "robdor80"))
+            lateinit var vm: PublisherViewModel
+            compose.runOnUiThread {
+                vm = PublisherViewModel(app, GitHubService(GitHubTransport { _, _, _, _ -> error("Refresh failed before /user") }),
+                    GitHubOAuth(transport = OAuthTransport { _, _ ->
+                        if (invalid) org.json.JSONObject("""{"error":"bad_refresh_token"}""")
+                        else throw OAuthFailure("Temporal", retryable = true)
+                    }))
+                models.put("refresh-test", vm)
+            }
+            compose.waitUntil { !vm.busy }
+            assertEquals(!invalid, vm.hasToken)
+            assertEquals(!invalid, store.oauth() != null)
+        }
+    }
+
     @Test fun confirmedUnauthorizedSessionIsRemoved() {
         saveSession()
         lateinit var vm: PublisherViewModel

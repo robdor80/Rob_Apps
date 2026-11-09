@@ -35,7 +35,7 @@ internal sealed interface DevicePoll {
 }
 
 internal class OAuthFailure(message: String, val retryable: Boolean = false,
-    val retryAfterSeconds: Long = 0) : Exception(message)
+    val retryAfterSeconds: Long = 0, val invalidSession: Boolean = false) : Exception(message)
 
 internal fun interface OAuthTransport {
     suspend fun post(path: String, fields: Map<String, String>): JSONObject
@@ -48,7 +48,7 @@ internal class GitHubOAuth(
 ) {
     suspend fun begin(clientId: String): DeviceAuthorization {
         require(validClientId(clientId)) { "ID de cliente de RobGit RD incorrecto." }
-        val result = transport.post("/login/device/code", mapOf("client_id" to clientId))
+        val result = transport.post("/login/device/code", mapOf("client_id" to clientId, "scope" to "offline_access"))
         if (result.has("error")) throw OAuthFailure("GitHub no permite iniciar la conexión. Comprueba que Device Flow está habilitado en RobGit RD.")
         val url = result.getString("verification_uri")
         if (url != "https://github.com/login/device") throw OAuthFailure("GitHub devolvió una dirección de autorización inesperada.")
@@ -89,7 +89,9 @@ internal class GitHubOAuth(
             "grant_type" to "refresh_token",
             "refresh_token" to old.refreshToken,
         ))
-        if (result.has("error")) throw OAuthFailure("La autorización de GitHub ha caducado o se ha revocado. Vuelve a conectarte.")
+        if (result.has("error")) throw OAuthFailure(
+            "No se pudo renovar la autorización de GitHub. Vuelve a conectarte si se ha revocado.",
+            invalidSession = result.optString("error") in setOf("bad_refresh_token", "expired_token", "invalid_grant"))
         return credentials(result, old.login)
     }
 
@@ -152,7 +154,7 @@ internal class HttpOAuthTransport(
                 val response = connection.errorStream?.use { it.readLimited(32 * 1024).toString(Charsets.UTF_8) }
                 val error = response?.let { JSONObject(it) }
                 if (error?.optString("error") in setOf("authorization_pending", "slow_down", "access_denied",
-                        "expired_token", "bad_verification_code", "device_flow_disabled", "invalid_grant")) {
+                        "expired_token", "bad_verification_code", "device_flow_disabled", "invalid_grant", "bad_refresh_token")) {
                     return@withContext error!!
                 }
             }

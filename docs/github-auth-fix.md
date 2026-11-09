@@ -64,13 +64,18 @@ caducidad de RobGit RD tampoco se ha cambiado ni se da por comprobada.
   en una sola transacción. La navegación vuelve a Inicio después de ese éxito.
 - Se aceptan tokens con renovación y sin caducidad. Un error temporal de comprobación
   de sesión conserva credenciales e identidad; un HTTP 401 confirmado elimina la
-  sesión rechazada. Se recupera la sesión al abrir la aplicación.
+  sesión rechazada. Una renovación con `bad_refresh_token`, `expired_token` o
+  `invalid_grant` confirma su invalidez; otros errores conservan la sesión.
+  Se recupera la sesión al abrir la aplicación.
 - Cancelar detiene el trabajo y elimina el intento; las cancelaciones de coroutines
   se propagan y no pueden resucitar un intento después de una respuesta tardía.
   Desconectar elimina credenciales, intento y clave; mantiene los repositorios.
 - El Device Flow de una GitHub App usa los permisos de la instalación y de la cuenta.
-  Se elimina `scope=offline_access`, que no es un permiso OAuth de GitHub. No se
-  añaden scopes, client secrets, permisos Android ni cambios a RobGit RD.
+  Se conserva `scope=offline_access`: solicita tokens con caducidad y renovación,
+  sin ampliar permisos. La documentación oficial admite renovar tokens obtenidos
+  por Device Flow sin `client_secret`. No se añaden scopes, client secrets,
+  permisos Android ni cambios a RobGit RD.
+  Referencia: [documentación oficial de renovación](https://github.com/github/docs/blob/main/content/apps/creating-github-apps/authenticating-with-a-github-app/refreshing-user-access-tokens.md).
 
 Se mantiene la UI y la arquitectura de publicación. No se modifica el motor RS-05
 ni se ejecuta `android-distribute.yml` (que publica Release).

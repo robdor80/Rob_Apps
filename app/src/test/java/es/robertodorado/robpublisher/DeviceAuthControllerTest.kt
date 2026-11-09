@@ -28,7 +28,8 @@ class DeviceAuthControllerTest {
             requests += path
             if (path == "/login/device/code") {
                 begins++
-                assertEquals(setOf("client_id"), fields.keys) // GitHub App permissions, no OAuth scopes/secret.
+                assertEquals(setOf("client_id", "scope"), fields.keys)
+                assertEquals("offline_access", fields["scope"]) // Solicita caducidad, no amplía permisos.
                 return JSONObject("""{"device_code":"secret-device","user_code":"ABCD-EFGH","verification_uri":"https://github.com/login/device","expires_in":900,"interval":5}""")
             }
             polls++

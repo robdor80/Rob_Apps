@@ -18,14 +18,14 @@ class GitHubOAuthTest {
     private fun enqueue(body: String, status: Int = 200) = server.enqueue(MockResponse().setResponseCode(status)
         .setHeader("Content-Type", "application/json").setBody(body))
 
-    @Test fun requestDeviceCodeHasNoScopesOrSecretsAndUsesOfficialUri() = runBlocking {
+    @Test fun requestDeviceCodeRequestsExpiryWithoutSecretsAndUsesOfficialUri() = runBlocking {
         enqueue("""{"device_code":"secret-device","user_code":"ABCD","verification_uri":"https://github.com/login/device","expires_in":900,"interval":5}""")
         val result = oauth.begin(ROBGIT_RD_CLIENT_ID)
         assertEquals("ABCD", result.userCode); assertEquals(901_000L, result.expiresAt)
         val request = server.takeRequest()
         assertEquals("/login/device/code", request.path)
         assertEquals("application/json", request.getHeader("Accept"))
-        assertEquals("client_id=$ROBGIT_RD_CLIENT_ID", request.body.readUtf8())
+        assertEquals("client_id=$ROBGIT_RD_CLIENT_ID&scope=offline_access", request.body.readUtf8())
     }
 
     @Test fun pendingAndSlowDownAreParsedWithoutTreatingBrowserAsSuccess() = runBlocking {
@@ -67,6 +67,22 @@ class GitHubOAuthTest {
                 assertTrue(e.retryable); assertEquals(25L, e.retryAfterSeconds)
                 assertFalse(e.message!!.contains("secret"))
             }
+        }
+    }
+
+    @Test fun refreshOfDeviceFlowTokenNeedsNoSecretAndKeepsIdentity() = runBlocking {
+        enqueue("""{"access_token":"new-access","token_type":"bearer","expires_in":28800,"refresh_token":"new-refresh","refresh_token_expires_in":15811200}""")
+        val fresh = oauth.refresh(ROBGIT_RD_CLIENT_ID, OAuthCredentials("old", "old-refresh", 0, 900_000, "robdor80"))
+        assertEquals("robdor80", fresh.login); assertEquals("new-access", fresh.accessToken)
+        assertEquals("client_id=$ROBGIT_RD_CLIENT_ID&grant_type=refresh_token&refresh_token=old-refresh",
+            server.takeRequest().body.readUtf8())
+    }
+
+    @Test fun onlyConfirmedInvalidRefreshErrorsInvalidateSession() = runBlocking {
+        for (error in listOf("bad_refresh_token", "invalid_grant", "expired_token", "incorrect_client_credentials")) {
+            enqueue("""{"error":"$error"}""")
+            try { oauth.refresh(ROBGIT_RD_CLIENT_ID, OAuthCredentials("old", "old-refresh", 0, 900_000, "robdor80")); fail("Expected failure") }
+            catch (e: OAuthFailure) { assertEquals(error != "incorrect_client_credentials", e.invalidSession) }
         }
     }
 
