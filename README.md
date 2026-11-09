@@ -2,18 +2,19 @@
 
 Aplicación Android personal para distribuir las aplicaciones de `robdor80` con
 GitHub Actions. Kotlin, Compose y Material 3; Android 8 (API 26) o posterior.
-Paquetes `es.robertodorado.robpublisher` y `es.robertodorado.robpublisher.debug`.
+Paquete oficial: `es.robertodorado.robpublisher`.
+La entrega al propietario se realiza exclusivamente mediante versiones oficiales
+Release, actualizables sobre la instalación anterior con el mismo certificado.
+Véase la [política permanente de distribución](docs/distribucion-oficial.md).
 
 ## Uso
 
-1. Configurar una sola vez la conexión GitHub en Ajustes. El token personal necesita
-   Metadata/Contents de lectura y Actions de lectura/escritura en las aplicaciones.
-   Se guarda cifrado con Android Keystore. No se muestra en la interfaz ni en logs;
-   al introducirlo está enmascarado. Las capturas de pantalla normales están permitidas.
+1. Conectar con GitHub en Ajustes mediante RobGit RD y su Device Flow.
+   Las credenciales se guardan cifradas con Android Keystore, sin PAT ni secretos
+   de cliente integrados. Las capturas de pantalla normales están permitidas.
 2. Seleccionar Cuadrante u otra aplicación descubierta automáticamente por su topic
    `robstore-app` o configuración RS-05. Las altas manuales siguen siendo opcionales.
-3. Pulsar **Publicar actualización**. El canal normal está seleccionado por defecto;
-   se puede elegir «Pruebas» para DEV antes de pulsar.
+3. Pulsar **Publicar actualización** para iniciar la distribución oficial Release.
 4. La pantalla muestra el progreso: espera, compilación, firma automática,
    publicación y resultado. Puede cerrarse la app y retomarse el seguimiento.
 5. Al publicarse una versión normal, RobStore puede encontrarla al refrescar su catálogo.
@@ -25,11 +26,11 @@ vez por aplicación y se reutilizan en GitHub, manteniendo la Release original.
 
 ## Integración coordinada con RobStore #12
 
-Esta adaptación se basa en la aplicación de la PR #1 de este repositorio;
-`main` todavía sólo contiene el icono. La PR de esta adaptación apunta a esa rama,
-para evitar duplicar la aplicación. Necesita el motor de
-[RobStore #12](https://github.com/robdor80/RobStore/pull/12) y la migración única de
-los wrappers de las aplicaciones antes de usar la publicación real.
+La aplicación está integrada en `main` y utiliza el motor central de RobStore.
+Los repositorios necesitan su configuración `.github/android-distribution.json`
+y el wrapper RS-05 para distribuirse automáticamente. Que otra aplicación carezca
+de esa configuración no bloquea la publicación de RobPublisher ni autoriza a
+modificar ese repositorio.
 
 La plantilla incluida llama al motor central en `@main` con `secrets: inherit`.
 Las futuras mejoras del motor se reciben sin cambiar referencias SHA por aplicación.
@@ -54,16 +55,19 @@ un candidato. Los pushes y PR ejecutan únicamente las comprobaciones de desarro
 
 ```sh
 ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
+./gradlew --no-daemon assembleRelease testReleaseUnitTest lintRelease
 ```
 
 Las pruebas HTTP simulan distribución, progreso, envío incierto, errores,
 descubrimiento y reanudación. No publican ni acceden a claves de producción.
 La prueba breve de navegación recorre Inicio, detalle y Ajustes sin credenciales.
-La CI adjunta un APK Debug temporal para pruebas; esa firma efímera no sustituye
-las identidades oficiales DEV/Release.
+La CI valida también la variante Release y su identidad frente al APK oficial
+publicado; adjunta informes de pruebas. Los APK internos no son una entrega al
+propietario. La firma oficial se ejecuta exclusivamente en el trabajo aislado RS-05.
 
 El icono está en `assets/robpublisher/icon.png`; los recursos de launcher se regeneran
-con `python3 tools/generate_launcher_icons.py`. La insignia «D» identifica DEV.
+con `python3 tools/generate_launcher_icons.py`. Los recursos Debug se limitan a
+las comprobaciones internas y no forman parte del APK Release.
 
 
 ## Inicio de sesión con GitHub (RobGit RD)

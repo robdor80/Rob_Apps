@@ -20,6 +20,36 @@ class GitHubSessionTest {
     private fun saveSession() = store.saveOAuth(OAuthCredentials("test-access", "", Long.MAX_VALUE,
         Long.MAX_VALUE, "robdor80"))
 
+    @Test fun previousOfficialEncryptedSessionAndPreferencesRemainReadable() {
+        // Reproduce el formato de LocalStore de la Release 1.0.2, sin usar saveOAuth nuevo.
+        store.saveToken("legacy-token") // Inicializa el alias histórico de Android Keystore.
+        val key = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            .getKey("robpublisher.github", null)
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding").apply {
+            init(javax.crypto.Cipher.ENCRYPT_MODE, key)
+        }
+        val oldJson = org.json.JSONObject().put("access", "old-access").put("refresh", "old-refresh")
+            .put("accessExpiry", Long.MAX_VALUE).put("refreshExpiry", Long.MAX_VALUE).put("login", "robdor80")
+        val encrypted = cipher.doFinal(oldJson.toString().toByteArray(Charsets.UTF_8))
+        val prefs = app.getSharedPreferences("robpublisher", 0)
+        assertTrue(prefs.edit()
+            .putString("oauth", android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP))
+            .putString("oauth_iv", android.util.Base64.encodeToString(cipher.iv, android.util.Base64.NO_WRAP))
+            .putStringSet("repositories", setOf("robdor80/Rob_Apps"))
+            .putString("oauth_client_id", ROBGIT_RD_CLIENT_ID).commit())
+        val reopened = LocalStore(app)
+        assertEquals("old-access", reopened.oauth()?.accessToken)
+        assertEquals("old-refresh", reopened.oauth()?.refreshToken)
+        assertEquals("robdor80", reopened.oauth()?.login)
+        assertEquals("legacy-token", reopened.token())
+        assertEquals(listOf("robdor80/Rob_Apps"), reopened.repositories())
+        assertEquals(ROBGIT_RD_CLIENT_ID, reopened.oauthClientId())
+        assertTrue(java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            .containsAlias("robpublisher.github"))
+        // No dejar preferencias de esta prueba a las siguientes.
+        assertTrue(prefs.edit().remove("repositories").remove("oauth_client_id").commit())
+    }
+
     @Test fun savedSessionRestoresWithoutDeviceFlowAndLogoutRemovesIt() {
         saveSession()
         var deviceRequests = 0

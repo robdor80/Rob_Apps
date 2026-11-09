@@ -12,7 +12,30 @@ permissions:
   actions: read
   deployments: read
 jobs:
+  official-identity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: android-release
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          cmdline-tools-version: '13114758'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Comprobar certificados configurados contra el APK histórico
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CERTIFICATE_SHA256: ${{ vars.CERTIFICATE_SHA256 }}
+          RELEASE_CERTIFICATE_SHA256: ${{ vars.RELEASE_CERTIFICATE_SHA256 }}
+        run: |
+          sdkmanager 'build-tools;35.0.0'
+          gh release download v1.0.2-3 --repo "$GITHUB_REPOSITORY" --pattern Android-release.apk --dir "$RUNNER_TEMP/official-baseline"
+          python3 tools/verify_official_release.py --build-tools "$ANDROID_HOME/build-tools/35.0.0" --baseline-apk "$RUNNER_TEMP/official-baseline/Android-release.apk" --check-signing-pins
   distribute:
+    needs: official-identity
     uses: robdor80/RobStore/.github/workflows/android-distribution-engine.yml@main
     secrets: inherit
     permissions:
