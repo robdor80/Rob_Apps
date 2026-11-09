@@ -61,6 +61,13 @@ y `SHA256SUMS`. El cierre de publicación RS-05 incorpora al tag `robstore.json`
 icono, `robstore-update.json` y recibo `robstore-distribution.json`, compatibles
 con el catálogo de RobStore. No se altera su motor ni otros repositorios.
 
+RobPublisher debe seguir presente en el catálogo de RobStore mediante el topic
+`robstore-app` y el manifiesto de cada etiqueta oficial. `robstorePolicy: false`
+selecciona la verificación para aplicaciones externas; no desactiva el catálogo.
+La [integración y sus pruebas permanentes](integracion-robstore.md) comprueban la
+Release real y la actualización con los dos APK oficiales, sin cambiar identidad,
+certificado ni la política de entrega exclusiva Release.
+
 ## Instalación y límites de las comprobaciones
 
 Descargar únicamente el APK oficial de la Release y abrirlo en Android para

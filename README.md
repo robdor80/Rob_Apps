@@ -6,6 +6,11 @@ Paquete oficial: `es.robertodorado.robpublisher`.
 La entrega al propietario se realiza exclusivamente mediante versiones oficiales
 Release, actualizables sobre la instalación anterior con el mismo certificado.
 Véase la [política permanente de distribución](docs/distribucion-oficial.md).
+RobPublisher está integrada en el catálogo de RobStore mediante el topic
+`robstore-app` y el manifiesto de su etiqueta oficial. La
+[comprobación de integración](docs/integracion-robstore.md) cubre descubrimiento,
+APK firmado y actualización Android sin desinstalar. `robstorePolicy: false`
+es la configuración RS-05 correcta para esta aplicación externa a RobStore.
 
 ## Uso
 

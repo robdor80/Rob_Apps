@@ -1,0 +1,93 @@
+name: RobPublisher catalog and official upgrade
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Android distribution (RobPublisher)']
+    branches: [main]
+    types: [completed]
+  pull_request:
+    paths:
+      - '.github/workflows/robstore-integration.yml'
+      - '.github/android-distribution.json'
+      - '.github/robpublisher-official.json'
+      - 'tools/verify_*'
+      - 'tools/robstore-integration/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/robstore-integration.yml'
+      - '.github/android-distribution.json'
+      - '.github/robpublisher-official.json'
+      - 'tools/verify_*'
+      - 'tools/robstore-integration/**'
+permissions:
+  contents: read
+concurrency:
+  group: robstore-integration-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  official-catalog:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ROBPUBLISHER_FIXTURE_DIRECTORY: ${{ github.workspace }}/catalog-evidence
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: publisher
+          persist-credentials: false
+      - name: Consultar el código de RobStore 0.1.3 sin modificar su repositorio
+        uses: actions/checkout@v5
+        with:
+          repository: robdor80/RobStore
+          ref: 95a3b43f5bb8ae6a5a969e33f82671ef717ad3d0
+          path: store
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            17
+      - uses: gradle/actions/setup-gradle@v5
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          cmdline-tools-version: '13114758'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Verificar catálogo, Release, APK oficial, firma y SHA-256 reales
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+          python3 publisher/tools/verify_robstore_catalog.py --directory "$ROBPUBLISHER_FIXTURE_DIRECTORY" --build-tools "$ANDROID_HOME/build-tools/35.0.0"
+      - name: Probar descubrimiento, comparación de versiones, verificador e instalador de RobStore
+        working-directory: store
+        run: |
+          cp ../publisher/tools/robstore-integration/RobPublisherCatalogIntegrationTest.kt app/src/test/java/es/robertodorado/robstore/catalog/
+          ./gradlew --no-daemon :app:testReleaseUnitTest --tests '*RobPublisherCatalogIntegrationTest' --tests '*InstallationFlowTest' --tests '*AndroidInstallerTest' --tests '*InstalledApplicationsTest'
+      - name: Preparar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Actualizar los dos APK oficiales sin desinstalar y conservar datos
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: default
+          disable-animations: true
+          script: python3 publisher/tools/verify_official_upgrade.py --directory "$ROBPUBLISHER_FIXTURE_DIRECTORY"
+      - name: Informes de integración, sin APK de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-integracion-robstore
+          path: |
+            catalog-evidence/catalog-verification.json
+            catalog-evidence/android-upgrade-verification.json
+            store/app/build/reports/tests/testReleaseUnitTest/
+            store/app/build/test-results/testReleaseUnitTest/TEST-*.xml
+          if-no-files-found: ignore
