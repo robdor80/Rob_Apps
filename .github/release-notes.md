@@ -1,11 +1,10 @@
-RobPublisher 1.0.3 — actualización oficial
+RobPublisher 1.0.4 — preparación pendiente de autorización
 
-- Corrige la conexión GitHub al regresar del navegador y recupera la autorización pendiente.
-- Conserva las sesiones ante errores temporales y admite tokens con renovación o sin caducidad.
-- Mantiene el paquete oficial y el certificado original para actualizar la instalación existente y conservar sus datos.
-- Distribución exclusivamente Release mediante GitHub Actions y RS-05, con comprobaciones de identidad, firma, versión y SHA-256.
+- Comprueba contratos oficiales e históricos y bloquea códigos repetidos, inferiores o indeterminados antes de ordenar la distribución.
+- Muestra versión actual y candidata y ofrece instrucciones para preparar una rama y PR sin modificar main ni ampliar permisos OAuth.
+- Identifica la fase fallida y enlaza a Actions para consultar detalle técnico con control de acceso.
+- Mantiene la confirmación de Release, identidad y certificado oficiales, almacenamiento cifrado y garantías definitivas de RS-05.
 
-Paquete: es.robertodorado.robpublisher. VersionName: 1.0.3. VersionCode: 4.
-Instalar Android-release.apk encima de la aplicación oficial anterior, sin desinstalarla.
-
-La conexión real y el descubrimiento de cinco aplicaciones fueron comprobados por el propietario en Galaxy Tab S9+ con la corrección de la PR #7. La persistencia al cerrar y reabrir la aplicación y la actualización física de la aplicación oficial siguen pendientes de comprobación; las pruebas automatizadas no sustituyen esa evidencia.
+Paquete: es.robertodorado.robpublisher. VersionName: 1.0.4. VersionCode: 5.
+Las estructuras Gradle dinámicas requieren evaluación en CI; la aplicación no edita Gradle automáticamente.
+Estas notas no constituyen una orden de publicación.

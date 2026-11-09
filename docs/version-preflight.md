@@ -45,5 +45,5 @@ Tras revisar, integrar y ordenar una futura Release oficial de RobPublisher:
    detalle de Actions. Un borrador o ejecución incompleta no debe marcar éxito.
 5. Confirmar la Release final en GitHub y actualizar desde RobStore manteniendo datos.
 
-No se publica una nueva versión de RobPublisher en esta PR: su versión de trabajo
-sigue en 1.0.3/código 4 hasta que se autorice preparar la entrega oficial siguiente.
+La PR prepara RobPublisher 1.0.4/código 5, superior a la oficial 1.0.3/código 4.
+No se publica: integración y distribución requieren autorización del propietario.
