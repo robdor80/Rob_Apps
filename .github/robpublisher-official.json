@@ -1,0 +1,10 @@
+{
+  "repository": "robdor80/Rob_Apps",
+  "tag": "v1.0.2-3",
+  "asset": "Android-release.apk",
+  "packageName": "es.robertodorado.robpublisher",
+  "versionCode": 3,
+  "versionName": "1.0.2",
+  "apkSha256": "96a62774d31cfdcb024883a3f8aaef1bb5e057034c32d02989a2492e134661eb",
+  "certificateSha256": "4be334716492b70d36fe8bbf87571a6519bad564ce42cb3e19b03475a35356d2"
+}

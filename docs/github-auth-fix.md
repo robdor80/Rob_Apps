@@ -124,59 +124,26 @@ e [informe unitario](https://github.com/robdor80/Rob_Apps/actions/runs/426647281
 La ejecución prueba la revisión de integración `e1f9c4ced7bd09eb1b4e2cc2cd842429d11d71bc`
 de la PR, cuyo código de aplicación corresponde al commit de implementación citado.
 
-## Compilación y descarga
+## Entrega oficial tras integrar la corrección
 
-Con JDK 17 y SDK Android 36:
+La PR #7 se integró en `main` el 9 de noviembre de 2026. Las compilaciones DEV
+mencionadas en la evidencia histórica fueron pruebas internas de aquella PR.
+No son la entrega vigente ni una instrucción para instalar una segunda aplicación.
+La entrega al propietario se realiza por Release oficial, según la
+[política permanente](distribucion-oficial.md).
 
-```sh
-./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
-./gradlew --no-daemon connectedDebugAndroidTest
-```
-
-El segundo comando requiere dispositivo/emulador. El APK queda en
-`app/build/outputs/apk/debug/app-debug.apk`, paquete
-`es.robertodorado.robpublisher.debug`, sufijo `-DEV`.
-
-En la PR, abrir el check **Android RobPublisher**, entrar en su ejecución de Actions
-y descargar el artefacto **RobPublisher-DEV-<SHA>**. Extraer el ZIP e instalar el APK.
-CI adjunta también los informes unitarios y de instrumentación. El APK se adjunta
-antes de ejecutar el emulador, para poder probarlo aunque ese paso falle.
-APK ya disponible de la implementación comprobada:
-[descargar ZIP de RobPublisher DEV](https://github.com/robdor80/Rob_Apps/actions/runs/42664728135/artifacts/13695663377).
-Nombre: `RobPublisher-DEV-e1f9c4ced7bd09eb1b4e2cc2cd842429d11d71bc`.
-SHA-256 del **ZIP de Actions** (no del APK extraído):
-`40f3d455d92b672a9e6dac8f464e1216a2ccf8653548ff271388075b122b44e2`.
-Disponible hasta el 7 de febrero de 2027, salvo eliminación anticipada del artefacto.
-
-Es una compilación DEV aislada, no una Release. Puede coexistir con la instalación
-oficial; necesita autorizar su propia sesión una vez. La clave debug de CI puede
-cambiar entre ejecuciones: si una instalación DEV anterior tiene otra firma,
-Android exigirá desinstalar solo esa copia DEV antes de instalar esta.
-
-## Verificación mínima en Samsung Galaxy Tab S9+
-
-1. Instalar el APK DEV de la revisión de la PR y abrir RobPublisher DEV.
-2. En Ajustes, pulsar Conectar. Anotar el código; copiarlo y abrir GitHub.
-3. Alternar varias veces entre navegador y RobPublisher. Comprobar que aparece el
-   mismo código, la espera y el tiempo restante. No volver a pulsar Conectar.
-4. Autorizar como `robdor80` y permanecer unos segundos en el navegador. Volver:
-   debe mostrarse Inicio y la identidad conectada, sin un Device Flow nuevo.
-5. Cerrar y reabrir la app: debe recuperar la sesión. Interrumpir temporalmente
-   Internet al comprobar conexión: debe conservarla; restaurar red y reintentar.
-6. Desconectar. Iniciar otro intento, rotar la tablet o cambiar tamaño de ventana:
-   debe conservar el código. Probar también cerrar la app desde recientes y
-   reabrirla antes de la caducidad. Para una muerte de proceso verificable, con
-   ADB disponible: enviar la app a segundo plano, ejecutar
-   `adb shell am kill es.robertodorado.robpublisher.debug` y reabrir desde el icono.
-7. Durante otro intento, quitar Internet y después recuperarlo: debe conservar el
-   código y reintentar. Cancelar: el código debe desaparecer y no debe reconectarse
-   al volver del navegador. Esperar su caducidad en otro intento: debe pedir uno nuevo.
+El propietario confirmó en su Galaxy Tab S9+ la autorización real como `robdor80`,
+el acceso a Inicio y el descubrimiento de las cinco aplicaciones. La persistencia
+al cerrar y reabrir continúa pendiente de comprobación física, igual que instalar
+la nueva Release sobre la oficial anterior. La CI prueba restauración de sesión,
+lifecycle, lectura del esquema cifrado anterior y navegación; no sustituye esa
+evidencia particular de la tablet.
 
 ## Límites pendientes
 
-- Una prueba real con GitHub y con el navegador/Samsung requiere la tablet y la
-  autorización interactiva del propietario. No se ha autorizado ninguna cuenta
-  mediante esta intervención ni se han tocado credenciales de producción.
+- La conexión real GitHub/navegador fue confirmada posteriormente por el propietario.
+  No se infiere de ello la persistencia tras cerrar y reabrir ni la actualización
+  física del paquete oficial. No se cambian credenciales ni permisos de RobGit RD.
 - Android puede suspender o matar el proceso en segundo plano. No se promete
   ejecución continua: al volver, se reanuda el intento válido o se recupera la
   sesión si ya se obtuvo. Si el código caduca antes de poder consultar, se necesita
