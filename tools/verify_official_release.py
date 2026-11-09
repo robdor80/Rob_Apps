@@ -51,9 +51,10 @@ def main():
     require(metadata(args.build_tools, args.baseline_apk) == (baseline["packageName"], baseline["versionCode"], baseline["versionName"]), "Historical APK metadata mismatch")
     signer(args.build_tools, args.baseline_apk, baseline["certificateSha256"])
     if args.check_signing_pins:
-        for name in ("CERTIFICATE_SHA256", "RELEASE_CERTIFICATE_SHA256"):
-            require(fingerprint(os.environ.get(name, "")) == baseline["certificateSha256"],
-                    name + " must match the historical official certificate; restore the original configuration, never replace the key")
+        # The workflow runs this check separately inside each protected environment.
+        # Environment variables cannot be read from the other signing/publishing job.
+        require(fingerprint(os.environ.get("CERTIFICATE_SHA256", "")) == baseline["certificateSha256"],
+                "Configured certificate must match the historical official certificate; restore the original configuration, never replace the key")
     if args.apk:
         package, code, name = metadata(args.build_tools, args.apk)
         require(package == baseline["packageName"], "Official package changed")
