@@ -103,7 +103,26 @@ restauración de sesión sin Device Flow, logout y conservación ante 503 frente
 eliminación ante 401 usando la API GitHub simulada. Sigue existiendo la prueba de
 navegación general `NavigationSmokeTest`.
 
-Resultados de ejecución: pendientes de completar antes de la entrega.
+Resultados reales (9 de noviembre de 2026), implementación `1dd196f6292dbe2939fb6d92b3f8a0fbe805bb61`:
+
+| Comprobación | Resultado |
+| --- | --- |
+| Local, JDK 17: `assembleDebug testDebugUnitTest lintDebug compileDebugAndroidTestKotlin` | Correcto; 33 pruebas JVM, 0 fallos, 0 omitidas; lint sin errores (con avisos) |
+| CI: compilación, pruebas JVM y lint | Correcto |
+| CI: `connectedDebugAndroidTest`, emulador Android 15/API 35 x86_64 | 11 pruebas ejecutadas, correcto |
+| Navegador real, autorización GitHub real y Samsung Galaxy Tab S9+ | Pendiente de comprobación del propietario |
+| Muerte real del proceso Android durante OAuth | Pendiente; reconstrucción de controlador y nueva Activity/ViewModel sí cubiertas |
+
+Las 33 pruebas JVM son 17 de controlador, 11 de protocolo HTTP/renovación y 5 de
+publicación existentes. Las 11 Android son 6 de lifecycle/cifrado, 4 de sesión y
+1 de navegación existente. Localmente no se ejecutó instrumentación por falta de
+`/dev/kvm`; su ejecución real tuvo lugar en el emulador de GitHub Actions.
+
+Evidencia: [CI correcta](https://github.com/robdor80/Rob_Apps/actions/runs/42664728135),
+[informe Android](https://github.com/robdor80/Rob_Apps/actions/runs/42664728135/artifacts/13696306404)
+e [informe unitario](https://github.com/robdor80/Rob_Apps/actions/runs/42664728135/artifacts/13695608342).
+La ejecución prueba la revisión de integración `e1f9c4ced7bd09eb1b4e2cc2cd842429d11d71bc`
+de la PR, cuyo código de aplicación corresponde al commit de implementación citado.
 
 ## Compilación y descarga
 
@@ -122,6 +141,13 @@ En la PR, abrir el check **Android RobPublisher**, entrar en su ejecución de Ac
 y descargar el artefacto **RobPublisher-DEV-<SHA>**. Extraer el ZIP e instalar el APK.
 CI adjunta también los informes unitarios y de instrumentación. El APK se adjunta
 antes de ejecutar el emulador, para poder probarlo aunque ese paso falle.
+APK ya disponible de la implementación comprobada:
+[descargar ZIP de RobPublisher DEV](https://github.com/robdor80/Rob_Apps/actions/runs/42664728135/artifacts/13695663377).
+Nombre: `RobPublisher-DEV-e1f9c4ced7bd09eb1b4e2cc2cd842429d11d71bc`.
+SHA-256 del **ZIP de Actions** (no del APK extraído):
+`40f3d455d92b672a9e6dac8f464e1216a2ccf8653548ff271388075b122b44e2`.
+Disponible hasta el 7 de febrero de 2027, salvo eliminación anticipada del artefacto.
+
 Es una compilación DEV aislada, no una Release. Puede coexistir con la instalación
 oficial; necesita autorizar su propia sesión una vez. La clave debug de CI puede
 cambiar entre ejecuciones: si una instalación DEV anterior tiene otra firma,
