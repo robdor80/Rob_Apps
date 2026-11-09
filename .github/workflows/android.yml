@@ -71,6 +71,11 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v5
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          cmdline-tools-version: '13114758'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
       - name: Validar la variante oficial sin claves de firma
         run: ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease
       - name: Comprobar identidad y actualización frente al APK oficial publicado
