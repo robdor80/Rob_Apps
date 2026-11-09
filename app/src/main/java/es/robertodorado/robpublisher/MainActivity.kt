@@ -174,7 +174,13 @@ private fun ApplicationDetails(vm: PublisherViewModel) {
             Panel {
                 Text("Publicación", style = MaterialTheme.typography.titleLarge)
                 Text("GitHub compila, firma y publica automáticamente. Puedes seguir el progreso aquí.")
-                Button(onClick = vm::distribute, enabled = !vm.busy && vm.publication?.watching != true) { Text("Publicar actualización") }
+                Text(vm.versionPreflight?.message ?: "Versión pendiente de comprobar.")
+                val browser = androidx.compose.ui.platform.LocalUriHandler.current
+                if (vm.versionPreflight?.allowed == false) {
+                    Text("Preparar nueva versión: crea una rama desde main y una PR que incremente la versión evaluada por Gradle. No se modificará main desde esta pantalla. Para versiones dinámicas, valida el resultado en CI. Si tu sesión no permite crear PR, utiliza GitHub con tus permisos actuales; no necesitas ampliar OAuth.")
+                    TextButton(onClick = { browser.openUri("https://github.com/${vm.selected}/compare") }) { Text("Preparar nueva versión") }
+                }
+                Button(onClick = vm::distribute, enabled = !vm.busy && vm.publication?.watching != true && vm.versionPreflight?.allowed == true) { Text("Publicar actualización") }
             }
         }
         item {
@@ -273,6 +279,10 @@ private fun PublicationProgress(vm: PublisherViewModel, session: PublicationSess
     Panel {
         Text("Distribución", style = MaterialTheme.typography.titleLarge)
         Text(session.repository.substringAfter('/'))
+        val browser = androidx.compose.ui.platform.LocalUriHandler.current
+        if (session.runId > 0) {
+            TextButton(onClick = { browser.openUri("https://github.com/${session.repository}/actions/runs/${session.runId}") }) { Text("Abrir ejecución y detalle técnico en GitHub") }
+        }
         listOf(
             "guard" to "Preparación",
             "build" to "Compilación",
