@@ -37,7 +37,9 @@ autenticación, sesión y navegación. No entrega APK experimentales al propieta
 
 El workflow `Android distribution (RobPublisher)` solo admite `release`. Antes de
 invocar RS-05 compara los certificados públicos configurados de firma y publicación
-con el APK histórico verificado de `v1.0.2-3`; no lee claves privadas. La referencia
+con el APK histórico verificado de `v1.0.2-3`, cada uno dentro de su propio entorno
+(`CERTIFICATE_SHA256` en `android-release` y `RELEASE_CERTIFICATE_SHA256` en
+`android-publish`); no lee claves privadas. La referencia
 de identidad está en `.github/robpublisher-official.json`. Es una referencia
 histórica permanente, no la versión que deba seguir siendo la última.
 
