@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "channel": "release",
+  "packageName": "es.robertodorado.robpublisher",
+  "versionCode": 4,
+  "versionName": "1.0.3",
+  "apkAssetName": "Android-release.apk",
+  "sha256": "ec12cce2875f8cf25e27aff6e1d2537f3797498eae2f7f46a9042c01722f5a2b"
+}
