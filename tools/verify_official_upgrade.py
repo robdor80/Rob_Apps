@@ -53,6 +53,8 @@ def main():
     launch()
     owner = shell("stat", "-c", "%u:%g", DATA)
     adb("shell", "mkdir", "-p", DATA + "/files", DATA + "/shared_prefs")
+    adb("shell", "chown", owner, DATA + "/files", DATA + "/shared_prefs")
+    adb("shell", "chmod", "700", DATA + "/files", DATA + "/shared_prefs")
     marker = folder / "upgrade-marker.txt"
     marker.write_text("RobPublisher official upgrade CI sentinel\n")
     preferences = folder / "upgrade-preferences.xml"
