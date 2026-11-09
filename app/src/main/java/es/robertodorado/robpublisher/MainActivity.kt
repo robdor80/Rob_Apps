@@ -104,7 +104,7 @@ private fun Home(vm: PublisherViewModel) {
                 Text("Conexión con GitHub", style = MaterialTheme.typography.titleLarge)
                 Text(if (vm.login != null) "● Conectado como ${vm.login}" else if (vm.hasToken) "● Conexión pendiente de comprobar" else "● Sin conexión configurada",
                     color = if (vm.login != null) RobSuccess else RobWarning)
-                TextButton(onClick = { vm.screen = "Ajustes" }) { Text("Configurar conexión") }
+                TextButton(onClick = { vm.screen = "Ajustes" }) { Text(if (vm.authorizing) "Continuar autorización" else "Configurar conexión") }
             }
         }
         item {
@@ -222,9 +222,10 @@ private fun Settings(vm: PublisherViewModel) {
                     Button(onClick = { browser.openUri(pending.verificationUri) }) {
                         Text("Abrir GitHub para autorizar")
                     }
-                    Text("La conexión se completará automáticamente al aceptar en GitHub.")
-                    TextButton(onClick = vm::cancelAuthorization) { Text("Cancelar conexión") }
+                    Text(if (vm.validatingAuthorization) "Validando la cuenta de GitHub…" else "Esperando autorización")
+                    Text("Tiempo restante: ${vm.authorizationRemainingSeconds / 60}:${(vm.authorizationRemainingSeconds % 60).toString().padStart(2, '0')}")
                 }
+                if (vm.authorizing) TextButton(onClick = vm::cancelAuthorization) { Text("Cancelar conexión") }
                 Text("Las credenciales se guardan cifradas con Android Keystore y se renuevan automáticamente.")
                 OutlinedButton(onClick = vm::checkConnection, enabled = vm.hasToken && !vm.busy) { Text("Comprobar conexión") }
                 TextButton(onClick = vm::disconnect, enabled = !vm.busy) { Text("Desconectar GitHub") }
