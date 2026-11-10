@@ -39,6 +39,7 @@ class PublisherViewModel internal constructor(
     var selected by mutableStateOf<String?>(null); private set
     var publication by mutableStateOf<PublicationSession?>(null); private set
     var screen by mutableStateOf("Inicio")
+    var versionPreflight by mutableStateOf<VersionPreflight?>(null); private set
     init {
         try { publication = store.publication() }
         catch (_: Exception) { message = "No se pudo recuperar el seguimiento guardado. No se enviará ninguna orden automáticamente." }
@@ -148,10 +149,12 @@ class PublisherViewModel internal constructor(
         refresh()
     }
     fun refresh() = operation {
+        versionPreflight = null
         repository = null; release = null; detailsLoaded = false
         val name = selected ?: return@operation
         repository = github.repository(name, requireToken())
         release = github.latestRelease(name, requireToken())
+        versionPreflight = VersionPreflightService(github).inspect(name, requireToken())
         detailsLoaded = true
     }
     private fun save(session: PublicationSession?) {
@@ -163,6 +166,9 @@ class PublisherViewModel internal constructor(
         if (publication?.watching == true) { message = "La distribución ya está en curso."; return }
         operation {
             val name = selected ?: return@operation
+            val version = VersionPreflightService(github).inspect(name, requireToken())
+            versionPreflight = version
+            demand(version.allowed, version.message)
             val current = distribution.plan(name, requireToken())
             val session = PublicationSession(current.repository, current.workflowId,
                 baseline = distribution.latestRunId(current.repository, requireToken()))

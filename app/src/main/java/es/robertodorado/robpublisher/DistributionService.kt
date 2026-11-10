@@ -108,7 +108,7 @@ class DistributionService(private val github: GitHubService) {
         demand(run.getLong("workflow_id") == session.workflowId && run.getString("event") == "workflow_dispatch" &&
             run.getString("head_branch") == "main", "La ejecución recibida no corresponde a esta distribución.")
         if (run.getString("status") in setOf("waiting", "action_required")) {
-            return current.copy(phase = "error", detail = "Esta aplicación conserva aprobaciones del sistema antiguo. La migración inicial debe retirarlas; no se necesita una nueva autorización de publicación.")
+            return current.copy(phase = "error", detail = "GitHub requiere una aprobación. Consulta la ejecución y respeta las protecciones configuradas; no vuelvas a enviar la orden.")
         }
         val jobs = JSONObject(github.get("${base(session.repository)}/actions/runs/$id/jobs?per_page=100", token)).getJSONArray("jobs")
         val list = (0 until jobs.length()).map { jobs.getJSONObject(it) }
@@ -125,15 +125,27 @@ class DistributionService(private val github: GitHubService) {
             return current.copy(phase = if (run.getString("status") == "in_progress") "ejecutándose" else "pendiente", detail = detail, stages = currentStages)
         }
         if (run.optString("conclusion") != "success") {
-            val failed = list.firstOrNull { it.optString("conclusion") in setOf("failure", "timed_out", "cancelled") }?.optString("name").orEmpty()
+            val job = list.firstOrNull { it.optString("conclusion") in setOf("failure", "timed_out", "cancelled") }
+            val failed = job?.optString("name").orEmpty()
+            val safePhase = failed.substringAfterLast("/ ").takeIf { it in setOf("guard", "build", "sign", "publish") } ?: "preparación"
+            // Only classify known annotations. Never render arbitrary remote logs or exception bodies.
+            val annotations = try {
+                val url = job?.optString("check_run_url").orEmpty()
+                val prefix = "https://api.github.com${base(session.repository)}/check-runs/"
+                if (url.startsWith(prefix) && url.removePrefix(prefix).all { it.isDigit() } && url.removePrefix(prefix).isNotEmpty())
+                    github.get(url.removePrefix("https://api.github.com") + "/annotations?per_page=100", token) else ""
+            } catch (_: GitHubException) { "" }
+              catch (_: java.io.IOException) { "" }
             val detail = when {
+                annotations.contains("versionCode must strictly increase") -> "La versión publicada ya existe o su código es demasiado bajo. Actualiza la información y prepara una nueva versión mediante PR."
+                annotations.contains("Resource not accessible") || annotations.contains("HTTP 403") -> "GitHub denegó permisos o limitó las consultas. Revisa el acceso existente; no generes ni compartas tokens."
                 run.optString("conclusion") == "cancelled" -> "La distribución se ha cancelado."
                 failed.endsWith("/ build") -> "No se pudo compilar la aplicación. Hay que corregir el proyecto antes de distribuir."
                 failed.endsWith("/ sign") -> "No se pudo firmar con la clave existente. Hay que corregir una vez su configuración; no debes firmar manualmente ni crear otra clave."
                 failed.endsWith("/ publish") -> "No se pudo completar la publicación. La actualización no está confirmada; puede haber un borrador incompleto."
                 else -> "No se pudo iniciar la distribución. Comprueba que el alta inicial de la aplicación esté completa."
             }
-            return current.copy(phase = "error", detail = detail, stages = currentStages)
+            return current.copy(phase = "error", detail = "Fase: $safePhase. $detail", stages = currentStages)
         }
         val releases = org.json.JSONArray(github.get("${base(session.repository)}/releases?per_page=100", token))
         var published: JSONObject? = null
