@@ -1,10 +1,14 @@
-RobPublisher 1.0.4 — preparación pendiente de autorización
+RobPublisher 1.0.5 — interfaz principal minimalista
 
-- Comprueba contratos oficiales e históricos y bloquea códigos repetidos, inferiores o indeterminados antes de ordenar la distribución.
-- Muestra versión actual y candidata y ofrece instrucciones para preparar una rama y PR sin modificar main ni ampliar permisos OAuth.
-- Identifica la fase fallida y enlaza a Actions para consultar detalle técnico con control de acceso.
-- Mantiene la confirmación de Release, identidad y certificado oficiales, almacenamiento cifrado y garantías definitivas de RS-05.
+- Pantalla Inicio rediseñada: título, indicador de conexión GitHub por color y acceso compacto a Ajustes.
+- El número de aplicaciones detectadas aparece como «N aplicaciones».
+- Lista vertical sin tarjetas: iconos oficiales de las apps, versión Release y código, fecha en formato español y estado.
+- Los errores reales de integración RS-05 se muestran en rojo; las aplicaciones preparadas se indican como «Publicable».
+- Los iconos PNG/WebP se consultan con límites de tamaño desde repositorios autorizados; si faltan, aparece un marcador neutro.
+- Se mantiene intacta la gestión de publicación, OAuth, sesiones cifradas, certificados e integración RS-05.
+- Las aplicaciones sin configuración RS-05 no se modifican: solo se informa del problema en la lista.
 
-Paquete: es.robertodorado.robpublisher. VersionName: 1.0.4. VersionCode: 5.
-Las estructuras Gradle dinámicas requieren evaluación en CI; la aplicación no edita Gradle automáticamente.
-Estas notas no constituyen una orden de publicación.
+Paquete: es.robertodorado.robpublisher. VersionName: 1.0.5. VersionCode: 6.
+Etiqueta esperada al publicar desde RobPublisher: v1.0.5-6.
+Preparada para revisión y distribución mediante el workflow oficial de RS-05.
+Estas notas no son una orden de publicación y no permiten omitir las comprobaciones de firma y versión.
