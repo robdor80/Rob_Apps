@@ -128,12 +128,12 @@ fun PublisherApp(vm: PublisherViewModel = viewModel()) {
     }
 }
 
-private fun displayRelease(tag: String): String {
+internal fun displayRelease(tag: String): String {
     val match = Regex("^v?([0-9]+(?:\\.[0-9]+)+)[-_]([0-9]+)$").matchEntire(tag)
     return if (match != null) "${match.groupValues[1]} (${match.groupValues[2]})" else tag.removePrefix("v")
 }
 
-private fun displayDate(date: String): String {
+internal fun displayDate(date: String): String {
     val parts = date.split('-')
     return if (parts.size == 3 && parts[0].length == 4) "${parts[2]}/${parts[1]}/${parts[0]}"
         else date.ifBlank { "No disponible" }
