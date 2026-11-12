@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "fbdc393bd94d9516d4c22492255a9c5aa521df49",
+  "channel": "release",
+  "certificateSha256": "4be334716492b70d36fe8bbf87571a6519bad564ce42cb3e19b03475a35356d2",
+  "apkSha256": "e7413e5dff67226aa0d638921e978a3735320552abc72ce08fc6f8ffc105cdf8",
+  "repository": "robdor80/Rob_Apps",
+  "preparationRun": "43272036855",
+  "tag": "v1.0.6-7"
+}
