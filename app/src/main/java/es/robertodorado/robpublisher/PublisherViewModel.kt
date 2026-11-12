@@ -1,6 +1,11 @@
 package es.robertodorado.robpublisher
 
 import android.app.Application
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -27,6 +32,32 @@ class PublisherViewModel internal constructor(
     var configured by mutableStateOf(store.repositories()); private set
     var accessible by mutableStateOf<List<Repository>>(emptyList()); private set
     var applications by mutableStateOf<List<ApplicationSummary>>(emptyList()); private set
+    // Caché en memoria: los iconos nunca son un requisito para publicar.
+    var icons by mutableStateOf<Map<String, ImageBitmap>>(emptyMap()); private set
+    private val requestedIcons = mutableSetOf<String>()
+    fun loadIcon(name: String) {
+        if (!hasToken || !requestedIcons.add(name)) return
+        viewModelScope.launch {
+            try {
+                val token = requireToken()
+                val repo = applications.firstOrNull { it.repository.fullName == name }?.repository
+                    ?: github.repository(name, token)
+                val bytes = github.applicationIcon(repo, token) ?: return@launch
+                val image = withContext(Dispatchers.Default) {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                    if (bounds.outWidth !in 1..4096 || bounds.outHeight !in 1..4096) return@withContext null
+                    var sample = 1
+                    while (bounds.outWidth / sample > 256 || bounds.outHeight / sample > 256) sample *= 2
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
+                        BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+                }
+                if (image != null) icons = icons + (name to image)
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { /* Solo afecta a la decoración de la lista. */ }
+        }
+    }
+
     var discoveryComplete by mutableStateOf(false); private set
     val applicationNames: List<String> get() = (configured + applications.map { it.repository.fullName }).distinct().sorted()
     var login by mutableStateOf<String?>(null); private set
@@ -64,6 +95,7 @@ class PublisherViewModel internal constructor(
                 state.connectedLogin?.let {
                     token = null; login = it; hasToken = true
                     applications = emptyList(); accessible = emptyList(); discoveryComplete = false
+                    icons = emptyMap(); requestedIcons.clear()
                     screen = "Inicio"
                 }
             }
@@ -127,6 +159,7 @@ class PublisherViewModel internal constructor(
         cancelAuthorization()
         store.disconnect(); token = null; hasToken = false; login = null
         applications = emptyList(); discoveryComplete = false
+        icons = emptyMap(); requestedIcons.clear()
         accessible = emptyList(); repository = null; release = null; detailsLoaded = false
         message = "Desconectado. Se conserva la lista de aplicaciones."
     }

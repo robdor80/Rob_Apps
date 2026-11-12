@@ -54,7 +54,7 @@ class DeviceAuthLifecycleTest {
     @Test fun navigatingAwayAndBackDoesNotStartNewAttempt() {
         seedAndLaunch(); assertCode()
         compose.onNodeWithText("Inicio").performClick()
-        compose.onNodeWithText("Ajustes").performClick(); assertCode()
+        compose.onNodeWithContentDescription("Abrir ajustes").performClick(); assertCode()
         compose.onNodeWithText("Conectar con GitHub").assertIsNotEnabled()
     }
 
