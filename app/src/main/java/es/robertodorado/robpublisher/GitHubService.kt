@@ -161,6 +161,50 @@ class GitHubService(private val transport: GitHubTransport = RestTransport()) {
         }
         return null
     }
+    /**
+     * Solo lectura. Se prioriza el icono declarado en robstore.json y los recursos
+     * conocidos de las aplicaciones. No se sigue ninguna URL externa ni redirects.
+     * Un icono ausente nunca bloquea descubrimiento ni publicación.
+     */
+    suspend fun applicationIcon(repo: Repository, token: String): ByteArray? {
+        require(repo.fullName.matches(Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")))
+        val declared = try {
+            val text = fileOrNull(repo, "robstore.json", token)
+            text?.let { JSONObject(it).optString("icon") }
+        } catch (_: org.json.JSONException) { null }
+        val candidates = listOfNotNull(
+            declared,
+            "robstore/icon.png",
+            "assets/${repo.name.lowercase()}/icon.png",
+            "assets/robpublisher/icon.png",
+            "app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+            "app/src/main/res/drawable-nodpi/ic_launcher_art.png",
+            "app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp"
+        ).distinct()
+        val ref = URLEncoder.encode(repo.branch, "UTF-8")
+        for (path in candidates) {
+            // Repositorios y rutas siempre del propio propietario; sin saltos de directorio.
+            if (path.length > 180 || !path.matches(Regex("[A-Za-z0-9_./-]+")) ||
+                path.split('/').any { it in setOf("", ".", "..") } ||
+                !(path.endsWith(".png") || path.endsWith(".webp"))) continue
+            val response = try {
+                JSONObject(get("/repos/${repo.fullName}/contents/$path?ref=$ref", token))
+            } catch (e: GitHubException) {
+                if (e.status == 404) continue else throw e
+            } catch (_: org.json.JSONException) { continue }
+            if (response.optString("encoding") != "base64") continue
+            val bytes = try { Base64.getMimeDecoder().decode(response.getString("content")) }
+                catch (_: Exception) { continue }
+            if (bytes.size !in 64..512_000) continue
+            val png = bytes.size >= 8 && bytes[0] == 0x89.toByte() &&
+                bytes[1] == 'P'.code.toByte() && bytes[2] == 'N'.code.toByte() && bytes[3] == 'G'.code.toByte()
+            val webp = bytes.size >= 12 && String(bytes, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+                String(bytes, 8, 4, Charsets.US_ASCII) == "WEBP"
+            if (png || webp) return bytes
+        }
+        return null
+    }
+
     private fun parseRepository(json: JSONObject) = Repository(
         json.getString("full_name"), json.getBoolean("private"),
         json.optBoolean("archived"), json.optString("default_branch", "—"),
