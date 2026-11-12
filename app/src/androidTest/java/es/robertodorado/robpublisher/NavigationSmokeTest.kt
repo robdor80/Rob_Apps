@@ -25,18 +25,18 @@ class NavigationSmokeTest {
     }
 
     @Test fun homeDetailsSettingsAndBack() {
-        compose.onNodeWithText("Aplicaciones (1)").assertIsDisplayed()
+        compose.onNodeWithText("1 aplicaciones").assertIsDisplayed()
         clickInList("Rob_Apps")
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Publicar actualización"))
         compose.onNodeWithText("Publicar actualización").assertIsNotEnabled()
         compose.onNodeWithText("Versión pendiente de comprobar.").assertExists()
         clickInList("Volver a Inicio", substring = true)
-        compose.onNodeWithText("Aplicaciones (1)").assertIsDisplayed()
-        compose.onNodeWithText("Ajustes").performClick()
+        compose.onNodeWithText("1 aplicaciones").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Abrir ajustes").performClick()
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Conectar con GitHub"))
         compose.onNodeWithText("Conectar con GitHub").assertIsDisplayed()
         clickInList("Eliminar de RobPublisher")
         compose.onNodeWithText("Inicio").performClick()
-        compose.onNodeWithText("Aplicaciones (0)").assertIsDisplayed()
+        compose.onNodeWithText("0 aplicaciones").assertIsDisplayed()
     }
 }
