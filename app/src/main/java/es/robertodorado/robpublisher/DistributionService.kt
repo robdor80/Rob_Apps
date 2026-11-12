@@ -107,8 +107,12 @@ class DistributionService(private val github: GitHubService) {
         val run = JSONObject(github.get("${base(session.repository)}/actions/runs/$id", token))
         demand(run.getLong("workflow_id") == session.workflowId && run.getString("event") == "workflow_dispatch" &&
             run.getString("head_branch") == "main", "La ejecución recibida no corresponde a esta distribución.")
-        if (run.getString("status") in setOf("waiting", "action_required")) {
-            return current.copy(phase = "error", detail = "GitHub requiere una aprobación. Consulta la ejecución y respeta las protecciones configuradas; no vuelvas a enviar la orden.")
+        val runStatus = run.getString("status")
+        // "waiting" es un estado transitorio: puede haber una protección de entorno
+        // real, pero NO es un fallo de firma ni autoriza a repetir la orden.
+        // Conservar el seguimiento para detectar la reanudación automática.
+        if (runStatus == "action_required") {
+            return current.copy(phase = "error", detail = "GitHub requiere una intervención. Revisa la ejecución en Actions; no vuelvas a enviar la orden.")
         }
         val jobs = JSONObject(github.get("${base(session.repository)}/actions/runs/$id/jobs?per_page=100", token)).getJSONArray("jobs")
         val list = (0 until jobs.length()).map { jobs.getJSONObject(it) }
@@ -116,6 +120,7 @@ class DistributionService(private val github: GitHubService) {
         if (run.getString("status") != "completed") {
             val active = list.firstOrNull { it.optString("status") == "in_progress" }?.optString("name").orEmpty()
             val detail = when {
+                runStatus == "waiting" -> "GitHub mantiene la publicación en espera. Si Actions solicita una aprobación real, revísala allí. Seguiremos comprobando sin reenviar."
                 active.endsWith("/ build") -> "Compilando la aplicación y comprobando el APK…"
                 active.endsWith("/ sign") -> "Firmando automáticamente la aplicación…"
                 active.endsWith("/ publish") -> "Publicando la actualización…"

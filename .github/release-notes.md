@@ -1,14 +1,13 @@
-RobPublisher 1.0.5 — interfaz principal minimalista
+RobPublisher 1.0.6 — seguimiento correcto de esperas GitHub
 
-- Pantalla Inicio rediseñada: título, indicador de conexión GitHub por color y acceso compacto a Ajustes.
-- El número de aplicaciones detectadas aparece como «N aplicaciones».
-- Lista vertical sin tarjetas: iconos oficiales de las apps, versión Release y código, fecha en formato español y estado.
-- Los errores reales de integración RS-05 se muestran en rojo; las aplicaciones preparadas se indican como «Publicable».
-- Los iconos PNG/WebP se consultan con límites de tamaño desde repositorios autorizados; si faltan, aparece un marcador neutro.
-- Se mantiene intacta la gestión de publicación, OAuth, sesiones cifradas, certificados e integración RS-05.
-- Las aplicaciones sin configuración RS-05 no se modifican: solo se informa del problema en la lista.
+- El estado de ejecución `waiting` ya no se considera erróneamente una firma fallida ni una aprobación confirmada.
+- Cuando GitHub queda en espera, RobPublisher conserva el seguimiento automático de la orden existente; al reanudarse se actualizan compilación, firma y publicación sin pulsar «Publicar» otra vez.
+- Si GitHub requiere realmente intervención (`action_required`), la aplicación sigue mostrando un bloqueo y remite a Actions. Nunca omite las protecciones de los entornos.
+- Mensajes más precisos, sin falsas afirmaciones de que GitHub exige aprobación.
+- Pruebas nuevas: espera → fallo real, espera → publicación correcta y estado con intervención real; ninguna ruta reenvía el POST de publicación.
+- Sin cambios en OAuth, certificados, secretos, permisos, firma o motor central RS-05.
+- Se conserva la interfaz minimalista de la versión 1.0.5.
 
-Paquete: es.robertodorado.robpublisher. VersionName: 1.0.5. VersionCode: 6.
-Etiqueta esperada al publicar desde RobPublisher: v1.0.5-6.
-Preparada para revisión y distribución mediante el workflow oficial de RS-05.
-Estas notas no son una orden de publicación y no permiten omitir las comprobaciones de firma y versión.
+Package: es.robertodorado.robpublisher
+Version: 1.0.6 · versionCode 7
+Publicación exclusiva mediante RobPublisher / RS-05 usando la firma Release original.

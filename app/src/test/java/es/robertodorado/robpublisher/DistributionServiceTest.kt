@@ -72,17 +72,67 @@ class DistributionServiceTest {
         assertEquals(1, posts)
     }
 
-    @Test fun oldApprovalAndSigningFailureAreErrorsNotApprovalButtons() = runBlocking {
+    @Test fun waitingKeepsTrackingUntilRealFailureWithoutResendingOrder() = runBlocking {
         var waiting = true
-        val api = DistributionService(GitHubService(GitHubTransport { _, path, _, _ ->
+        var posts = 0
+        val api = DistributionService(GitHubService(GitHubTransport { method, path, _, _ ->
+            if (method == "POST") posts++
             ApiResponse(200, if (path.contains("/jobs?")) """{"jobs":[{"name":"distribute / sign","conclusion":"failure"}]}"""
                 else run(if (waiting) "waiting" else "completed", "failure").toString())
         }))
-        assertEquals("error", api.update(session(), "test-token").phase)
+        val pending = api.update(session(), "test-token")
+        assertEquals("pendiente", pending.phase)
+        assertTrue(pending.watching)
+        assertTrue(pending.detail.contains("espera"))
+        assertFalse(pending.detail.contains("requiere una aprobación"))
         waiting = false
-        val error = api.update(session(), "test-token")
+        val error = api.update(pending, "test-token")
         assertEquals("error", error.phase)
         assertTrue(error.detail.contains("clave existente"))
+        assertEquals(0, posts)
+    }
+
+    @Test fun waitingCanResumeAndPublishAutomaticallyWithoutResendingOrder() = runBlocking {
+        var status = "waiting"
+        var posts = 0
+        val api = DistributionService(GitHubService(GitHubTransport { method, path, _, _ ->
+            if (method == "POST") posts++
+            val body = when {
+                path.endsWith("/jobs?per_page=100") -> JSONObject().put("jobs", JSONArray().put(
+                    JSONObject().put("name", "distribute / sign").put("status",
+                        if (status == "completed") "completed" else "queued").put("conclusion",
+                        if (status == "completed") "success" else ""))).toString()
+                path.contains("/actions/runs/") -> run(status, if (status == "completed") "success" else "").toString()
+                path.contains("/releases?") -> """[{"tag_name":"v1.0.6-7","draft":false,"prerelease":false,"assets":[{"name":"Android-release.apk","state":"uploaded"}]}]"""
+                path.contains("/contents/robstore-distribution.json") -> content(
+                    """{"preparationRun":"10","channel":"release","repository":"$repo"}""")
+                else -> error("Unexpected request: $path")
+            }
+            ApiResponse(200, body)
+        }))
+        val waiting = api.update(session(), "test-token")
+        assertTrue(waiting.watching)
+        assertEquals("pendiente", waiting.phase)
+        status = "in_progress"
+        assertEquals("ejecutándose", api.update(waiting, "test-token").phase)
+        status = "completed"
+        val complete = api.update(waiting, "test-token")
+        assertEquals("publicado", complete.phase)
+        assertEquals("v1.0.6-7", complete.tag)
+        assertEquals(0, posts)
+    }
+
+    @Test fun genuineActionRequiredDoesNotBypassProtectionsOrSendNewOrder() = runBlocking {
+        var posts = 0
+        val api = DistributionService(GitHubService(GitHubTransport { method, _, _, _ ->
+            if (method == "POST") posts++
+            ApiResponse(200, run("action_required").toString())
+        }))
+        val result = api.update(session(), "test-token")
+        assertEquals("error", result.phase)
+        assertTrue(result.detail.contains("intervención"))
+        assertFalse(result.watching)
+        assertEquals(0, posts)
     }
 
     @Test fun wrapperUsesCentralMainAndLegacySessionCannotResumePreparation() {
